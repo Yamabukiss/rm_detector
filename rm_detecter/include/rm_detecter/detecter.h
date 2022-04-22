@@ -16,6 +16,7 @@
 #include "std_msgs/Int16MultiArray.h"
 #include "dynamic_reconfigure/server.h"
 #include "rm_detecter/dynamicConfig.h"
+#include "fstream"
 
 struct Object
 {
@@ -48,7 +49,7 @@ public:
      void sendMsg(boost::shared_ptr<sensor_msgs::Image> msg);
     cv::Mat staticResize(cv::Mat& img);
     void blobFromImage(cv::Mat& img, InferenceEngine::MemoryBlob::Ptr &mblob);
-    static void generateGridsAndStride(const int target_w, const int target_h, std::vector<int>& strides, std::vector<GridAndStride>& grid_strides);
+//    static void generateGridsAndStride(const int target_w, const int target_h, std::vector<int>& strides, std::vector<GridAndStride>& grid_strides);
     static void generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr, float prob_threshold, std::vector<Object>& objects);
     static inline float intersectionArea(const Object& a, const Object& b);
     static void qsortDescentInplace(std::vector<Object>& faceobjects, int left, int right);
