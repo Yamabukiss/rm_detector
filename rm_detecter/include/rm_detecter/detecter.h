@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 #include <inference_engine.hpp>
-#include "std_msgs/Int32MultiArray.h"
+#include "std_msgs/Int16MultiArray.h"
 #include "dynamic_reconfigure/server.h"
 #include "rm_detecter/dynamicConfig.h"
 
@@ -58,7 +58,7 @@ public:
     sensor_msgs::ImagePtr drawObjects(const cv::Mat& bgr, const std::vector<Object>& objects);
       sensor_msgs::ImagePtr mainFuc( cv_bridge::CvImagePtr& image_ptr,std::vector<Object> objects);
       bool getCam(cv_bridge::CvImagePtr& cv_image, sensor_msgs::CameraInfoConstPtr& cam_info) ;
-  inline void sendROI(std_msgs::Int32MultiArray roi_data);
+//  inline void sendROI(std_msgs::Int16MultiArray roi_data);
     void  initalize_infer();
   static cv_bridge::CvImagePtr cv_image_;
   static sensor_msgs::CameraInfoConstPtr info_;
@@ -72,7 +72,10 @@ private:
   ros::Subscriber camera_sub_;
 //  std::shared_ptr<image_transport::ImageTransport> it_;
 //  image_transport::CameraSubscriber camera_sub_;
-  ros::Publisher roi_data_pub_;
+  std::vector<ros::Publisher> roi_data_pub_vec;
+  ros::Publisher roi_data_pub1_;
+  ros::Publisher roi_data_pub2_;
+  ros::Publisher roi_data_pub3_;
 //  image_transport::Publisher camera_pub_;
 
 

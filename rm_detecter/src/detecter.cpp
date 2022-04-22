@@ -9,7 +9,7 @@
 #define NUM_CLASSES  1
 float g_nms_thresh=0.1;
 float g_bbox_conf_thresh=0.1;
-std_msgs::Int32MultiArray g_roi_data;
+std_msgs::Int16MultiArray g_roi_data;
 
 namespace rm_detecter
 {
@@ -30,7 +30,13 @@ void Detecter::initialize( const ros::NodeHandle& nh)
 //                                     &Detecter::receiveFromCam,this);
 //  camera_pub_=it_->advertise("armor_detect",1);
 
-  roi_data_pub_=nh_.advertise<std_msgs::Int32MultiArray>("roi_data",1);
+  roi_data_pub1_=nh_.advertise<std_msgs::Int16MultiArray>("roi_data1",1);
+  roi_data_pub2_=nh_.advertise<std_msgs::Int16MultiArray>("roi_data2",1);
+  roi_data_pub3_=nh_.advertise<std_msgs::Int16MultiArray>("roi_data3",1);
+
+  roi_data_pub_vec.push_back(roi_data_pub1_);
+  roi_data_pub_vec.push_back(roi_data_pub1_);
+  roi_data_pub_vec.push_back(roi_data_pub1_);
 
 
 }
@@ -71,10 +77,10 @@ void Detecter::initialize( const ros::NodeHandle& nh)
         camera_pub_.publish(msg);
     }
 
-    inline  void Detecter::sendROI(std_msgs::Int32MultiArray roi_data)
-    {
-        roi_data_pub_.publish(roi_data);
-    }
+//    inline  void Detecter::sendROI(std_msgs::Int16MultiArray roi_data)
+//    {
+//        roi_data_pub_.publish(roi_data);
+//    }
 
      cv::Mat Detecter::staticResize(cv::Mat& img) {
         float r = std::min(INPUT_W / (img.cols*1.0), INPUT_H / (img.rows*1.0));
@@ -319,7 +325,8 @@ void Detecter::initialize( const ros::NodeHandle& nh)
             g_roi_data.data.push_back(obj.rect.tl().y);
             g_roi_data.data.push_back(obj.rect.width);
             g_roi_data.data.push_back(obj.rect.height);
-            sendROI(g_roi_data);
+            roi_data_pub_vec[i].publish(g_roi_data);
+//            sendROI(g_roi_data);
 //        fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
 //                obj.rect.tl().x, obj.rect.tl().y, obj.rect.width, obj.rect.height);
 
