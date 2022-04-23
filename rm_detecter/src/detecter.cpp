@@ -389,7 +389,7 @@ void Detecter::initialize( const ros::NodeHandle& nh)
     void  Detecter::initalize_infer()
     {
         InferenceEngine::Core ie;
-        InferenceEngine::CNNNetwork network = ie.ReadNetwork("/home/yamabuki/detect_ws/src/rm_detecter/armor3.onnx");
+        InferenceEngine::CNNNetwork network = ie.ReadNetwork("armor3.onnx");
         std::string input_name = network.getInputsInfo().begin()->first;
         std::string output_name = network.getOutputsInfo().begin()->first;
         InferenceEngine::DataPtr output_info = network.getOutputsInfo().begin()->second;
