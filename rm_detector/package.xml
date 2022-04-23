@@ -57,6 +57,8 @@
   <depend>rospy</depend>
   <depend>std_msgs</depend>
   <depend>cv_bridge</depend>
+  <depend>nodelet</depend>
+  <depend>pluginlib</depend>
 
  
   <!-- The export tag contains other, unspecified, tags -->

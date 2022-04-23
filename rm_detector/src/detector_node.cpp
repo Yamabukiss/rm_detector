@@ -3,12 +3,15 @@
 //
 #include <rm_detector/detector.h>
 
+
 extern float g_nms_thresh;
 extern float g_bbox_conf_thresh;
+extern bool g_turn_on_image;
 void dynamic_callback(rm_detector::dynamicConfig &config)
 {
     g_nms_thresh = config.g_nms_thresh;
     g_bbox_conf_thresh = config.g_bbox_conf_thresh;
+    g_turn_on_image=config.g_turn_on_image;
 }
 
 int main(int argc, char** argv)
@@ -34,7 +37,7 @@ int main(int argc, char** argv)
 
     if (cv_image.get() != nullptr)
     {
-        detector.sendMsg(detector.mainFuc(cv_image,objects));
+        detector.mainFuc(cv_image,objects);
         objects.clear();
     }
 

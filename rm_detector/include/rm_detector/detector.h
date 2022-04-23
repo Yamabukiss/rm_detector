@@ -13,6 +13,7 @@
 #include "dynamic_reconfigure/server.h"
 #include "rm_detector/dynamicConfig.h"
 #include "sensor_msgs/CameraInfo.h"
+#include "nodelet/nodelet.h"
 
 struct Object
 {
@@ -53,7 +54,7 @@ public:
     static void nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold);
     static void decodeOutputs(const float* prob, std::vector<Object>& objects, float scale, const int img_w, const int img_h);
     sensor_msgs::ImagePtr drawObjects(const cv::Mat& bgr, const std::vector<Object>& objects);
-      sensor_msgs::ImagePtr mainFuc( cv_bridge::CvImagePtr& image_ptr,std::vector<Object> objects);
+      void mainFuc( cv_bridge::CvImagePtr& image_ptr,std::vector<Object> objects);
       bool getCam(cv_bridge::CvImagePtr& cv_image, sensor_msgs::CameraInfoConstPtr& cam_info) ;
 //  inline void sendROI(std_msgs::Int16MultiArray roi_data);
     void  initalize_infer();
@@ -62,6 +63,7 @@ public:
   static InferenceEngine::MemoryBlob::Ptr mblob_;
   static const float* net_pred_;
   static std::vector<GridAndStride> grid_strides_;
+  static std::vector<ros::Publisher> roi_data_pub_vec;
 
 private:
   ros::NodeHandle nh_;
@@ -69,7 +71,6 @@ private:
   ros::Subscriber camera_sub_;
 //  std::shared_ptr<image_transport::ImageTransport> it_;
 //  image_transport::CameraSubscriber camera_sub_;
-  std::vector<ros::Publisher> roi_data_pub_vec;
   ros::Publisher roi_data_pub1_;
   ros::Publisher roi_data_pub2_;
   ros::Publisher roi_data_pub3_;

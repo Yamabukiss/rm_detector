@@ -7,6 +7,8 @@ find_package(catkin REQUIRED COMPONENTS
         dynamic_reconfigure
         std_msgs
         cv_bridge
+        nodelet
+        pluginlib
         )
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)

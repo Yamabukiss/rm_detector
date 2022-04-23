@@ -10,6 +10,7 @@
 #define NUM_CLASSES  1
 float g_nms_thresh=0.1;
 float g_bbox_conf_thresh=0.1;
+bool  g_turn_on_image=true;
 std_msgs::Int16MultiArray g_roi_data;
 
 namespace rm_detector
@@ -311,7 +312,19 @@ void Detector::initialize( const ros::NodeHandle& nh)
             objects[i].rect.width = x1 - x0;
             objects[i].rect.height = y1 - y0;
         } // make the real object
-    }
+
+         for (size_t i = 0; i < objects.size(); i++) {
+             const Object &obj = objects[i];
+             g_roi_data.data.clear();
+             g_roi_data.data.push_back(obj.rect.tl().x);
+             g_roi_data.data.push_back(obj.rect.tl().y);
+             g_roi_data.data.push_back(obj.rect.width);
+             g_roi_data.data.push_back(obj.rect.height);
+             roi_data_pub_vec[i].publish(g_roi_data);
+         }
+
+
+     }
 
     sensor_msgs::ImagePtr Detector::drawObjects(const cv::Mat& bgr, const std::vector<Object>& objects)
     {
@@ -369,7 +382,7 @@ void Detector::initialize( const ros::NodeHandle& nh)
         return msg;
     }
 
-    sensor_msgs::ImagePtr Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr,std::vector<Object> objects) {
+    void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr,std::vector<Object> objects) {
 
         cv::Mat pr_img = staticResize(image_ptr->image);
         blobFromImage(pr_img, Detector::mblob_);
@@ -382,7 +395,7 @@ void Detector::initialize( const ros::NodeHandle& nh)
         float scale = std::min(INPUT_W / (image_ptr->image.cols*1.0), INPUT_H / (image_ptr->image.rows*1.0));
 
         decodeOutputs(Detector::net_pred_, objects, scale, img_w, img_h);
-        return drawObjects(image_ptr->image, objects);
+        if(g_turn_on_image) sendMsg(drawObjects(image_ptr->image, objects));
     }
 
     void  Detector::initalize_infer()
@@ -418,5 +431,6 @@ InferenceEngine::MemoryBlob::Ptr Detector::mblob_;
 const float* Detector::net_pred_;
 cv_bridge::CvImagePtr Detector::cv_image_;
 std::vector<GridAndStride> Detector::grid_strides_;
+std::vector<ros::Publisher> Detector::roi_data_pub_vec;
 
 }  // namespace rm_detector
