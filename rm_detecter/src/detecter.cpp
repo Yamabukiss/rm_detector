@@ -389,14 +389,14 @@ void Detecter::initialize( const ros::NodeHandle& nh)
     void  Detecter::initalize_infer()
     {
         InferenceEngine::Core ie;
-        InferenceEngine::CNNNetwork network = ie.ReadNetwork("armor3.onnx");
+        InferenceEngine::CNNNetwork network = ie.ReadNetwork("../armor3.onnx");
         std::string input_name = network.getInputsInfo().begin()->first;
         std::string output_name = network.getOutputsInfo().begin()->first;
         InferenceEngine::DataPtr output_info = network.getOutputsInfo().begin()->second;
         output_info->setPrecision(InferenceEngine::Precision::FP32);
         std::map<std::string, std::string> config = {{ InferenceEngine::PluginConfigParams::KEY_PERF_COUNT,InferenceEngine::PluginConfigParams::NO},
                                                      {InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD,InferenceEngine::PluginConfigParams::NUMA},
-                                                     {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO},
+                                                     {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA},
                                                      {InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM,"16"}};
         InferenceEngine::ExecutableNetwork executable_network = ie.LoadNetwork(network, "CPU",config);
         InferenceEngine::InferRequest infer_request = executable_network.CreateInferRequest();
