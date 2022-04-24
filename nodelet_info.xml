@@ -1,0 +1,5 @@
+<library path="lib/librm_detector">
+    <class name="rm_detector/armor_detector" type="rm_detector::Detector" base_class_type="nodelet::Nodelet">
+        <description>the detect armor class</description>
+    </class>
+</library>
