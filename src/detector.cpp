@@ -19,22 +19,25 @@ Detector::Detector()
 
 void Detector::onInit()
 {
-  ros::NodeHandle nh = getPrivateNodeHandle();
+  ros::NodeHandle nh = getMTPrivateNodeHandle();
   nh.getParam("g_model_path", model_path_);
-  callback_ = boost::bind(&Detector::dynamic_callback, this, _1);
+  nh.getParam("distortion_coefficients/data", discoeffs_vec_);
+  nh.getParam("camera_matrix/data", camera_matrix_vec_);
+  setDataToMatrix(discoeffs_vec_, camera_matrix_vec_);
+  callback_ = boost::bind(&Detector::dynamicCallback, this, _1);
   server_.setCallback(callback_);
   nh_ = ros::NodeHandle(nh, "detector_node");
   camera_sub_ = nh_.subscribe("/galaxy_camera/image_raw", 1, &Detector::receiveFromCam, this);
   camera_pub_ = nh_.advertise<sensor_msgs::Image>("armor_detect", 1);
 
-  roi_data_pub1_ = nh_.advertise<std_msgs::Int16MultiArray>("roi_data1", 1);
-  roi_data_pub2_ = nh_.advertise<std_msgs::Int16MultiArray>("roi_data2", 1);
-  roi_data_pub3_ = nh_.advertise<std_msgs::Int16MultiArray>("roi_data3", 1);
+  roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>("roi_data1", 1);
+  roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>("roi_data2", 1);
+  roi_data_pub3_ = nh_.advertise<std_msgs::Float32MultiArray>("roi_data3", 1);
 
   roi_data_pub_vec.push_back(roi_data_pub1_);
   roi_data_pub_vec.push_back(roi_data_pub1_);
   roi_data_pub_vec.push_back(roi_data_pub1_);
-  initalize_infer();
+  initalizeInfer();
 
   generateGridsAndStride(INPUT_W, INPUT_H);  // the wide height strides need to be changed depending on demand
 }
@@ -46,12 +49,19 @@ void Detector::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
   objects_.clear();
 }
 
-void Detector::dynamic_callback(rm_detector::dynamicConfig& config)
+void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
 {
   nms_thresh_ = config.g_nms_thresh;
   bbox_conf_thresh_ = config.g_bbox_conf_thresh;
   turn_on_image_ = config.g_turn_on_image;
   ROS_INFO("Changes have been seted");
+}
+
+void Detector::setDataToMatrix(std::vector<float> disc_vec, std::vector<float> cam_vec)
+{
+  discoeffs_ = (cv::Mat_<float>(1, 5) << disc_vec[0], disc_vec[1], disc_vec[2], disc_vec[3], disc_vec[4]);
+  camera_matrix_ = (cv::Mat_<float>(3, 3) << cam_vec[0], cam_vec[1], cam_vec[2], cam_vec[3], cam_vec[4], cam_vec[5],
+                    cam_vec[6], cam_vec[7], cam_vec[8]);
 }
 
 cv::Mat Detector::staticResize(cv::Mat& img)
@@ -290,9 +300,14 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
   }  // make the real object
   for (size_t i = 0; i < objects_.size(); i++)
   {
+    roi_point_vec_.clear();
     roi_data_.data.clear();
-    roi_data_.data.push_back(objects_[i].rect.tl().x);
-    roi_data_.data.push_back(objects_[i].rect.tl().y);
+    roi_data_point_.x = objects_[i].rect.x;
+    roi_data_point_.y = objects_[i].rect.y;
+    roi_point_vec_.push_back(roi_data_point_);
+    cv::undistortPoints(roi_point_vec_, roi_point_vec_, camera_matrix_, discoeffs_, cv::noArray());
+    roi_data_.data.push_back(roi_point_vec_[0].x);
+    roi_data_.data.push_back(roi_point_vec_[0].y);
     roi_data_.data.push_back(objects_[i].rect.width);
     roi_data_.data.push_back(objects_[i].rect.height);
     roi_data_pub_vec[i].publish(roi_data_);
@@ -362,20 +377,19 @@ void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr, std::vector<Object> obj
     drawObjects(image_ptr->image, objects_);
 }
 
-void Detector::initalize_infer()
+void Detector::initalizeInfer()
 {
   InferenceEngine::Core ie;
   InferenceEngine::CNNNetwork network = ie.ReadNetwork(model_path_);
   std::string input_name = network.getInputsInfo().begin()->first;
   std::string output_name = network.getOutputsInfo().begin()->first;
   InferenceEngine::DataPtr output_info = network.getOutputsInfo().begin()->second;
-  output_info->setPrecision(InferenceEngine::Precision::FP32);
+  output_info->setPrecision(InferenceEngine::Precision::FP16);
   std::map<std::string, std::string> config = {
     { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO },
     { InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, InferenceEngine::PluginConfigParams::NUMA },
     { InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-      InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA },
-    { InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "16" }
+      InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA }
   };
   InferenceEngine::ExecutableNetwork executable_network = ie.LoadNetwork(network, "CPU", config);
   infer_request_ = executable_network.CreateInferRequest();

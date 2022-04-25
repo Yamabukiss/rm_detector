@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 #include <inference_engine.hpp>
-#include "std_msgs/Int16MultiArray.h"
+#include "std_msgs/Float32MultiArray.h"
 #include "dynamic_reconfigure/server.h"
 #include "rm_detector/dynamicConfig.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -44,6 +44,7 @@ public:
   void generateGridsAndStride(const int target_w, const int target_h);
   void generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr, float prob_threshold,
                               std::vector<Object>& objects);
+  void setDataToMatrix(std::vector<float> disc_vec, std::vector<float> cam_vec);
   inline float intersectionArea(const Object& a, const Object& b);
   void qsortDescentInplace(std::vector<Object>& faceobjects, int left, int right);
   void qsortDescentInplace(std::vector<Object>& objects);
@@ -51,8 +52,8 @@ public:
   void decodeOutputs(const float* prob, std::vector<Object>& objects, float scale, const int img_w, const int img_h);
   void drawObjects(const cv::Mat& bgr, const std::vector<Object>& objects);
   void mainFuc(cv_bridge::CvImagePtr& image_ptr, std::vector<Object> objects);
-  void initalize_infer();
-  void dynamic_callback(rm_detector::dynamicConfig& config);
+  void initalizeInfer();
+  void dynamicCallback(rm_detector::dynamicConfig& config);
   cv_bridge::CvImagePtr cv_image_;
   InferenceEngine::InferRequest infer_request_;
   InferenceEngine::MemoryBlob::Ptr mblob_;
@@ -60,7 +61,13 @@ public:
   std::vector<GridAndStride> grid_strides_;
   float nms_thresh_;
   float bbox_conf_thresh_;
-  std_msgs::Int16MultiArray roi_data_;
+  std_msgs::Float32MultiArray roi_data_;
+  std::vector<cv::Point2f> roi_point_vec_;
+  cv::Point2i roi_data_point_;
+  cv::Mat_<float> discoeffs_;
+  cv::Mat_<float> camera_matrix_;
+  std::vector<float> discoeffs_vec_;
+  std::vector<float> camera_matrix_vec_;
   std::vector<Object> objects_;
   std::string model_path_;
   bool turn_on_image_;

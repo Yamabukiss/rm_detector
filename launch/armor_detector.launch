@@ -3,6 +3,7 @@
   <!-- nodelet'tag should follow obey the following format -->
   <node pkg="nodelet" type="nodelet" name="armor_detect_nodelet" args="load rm_detector/armor_detector nodelet_manager" output="screen" >
   <param name="g_model_path"  type="string" value="/home/yamabuki/detect_ws/src/rm_detector/8000.onnx"/>
+  <rosparam command="load" file="/home/yamabuki/detect_ws/src/rm_detector/config/camera.yaml" />
   </node>
 
 </launch>
