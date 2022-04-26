@@ -69,6 +69,7 @@ public:
   cv::Mat_<float> camera_matrix_;
   std::vector<float> discoeffs_vec_;
   std::vector<float> camera_matrix_vec_;
+  float r_;
   std::vector<Object> objects_;
   std::string model_path_;
   bool turn_on_image_;
