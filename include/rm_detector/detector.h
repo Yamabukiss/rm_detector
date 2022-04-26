@@ -63,7 +63,8 @@ public:
   float bbox_conf_thresh_;
   std_msgs::Float32MultiArray roi_data_;
   std::vector<cv::Point2f> roi_point_vec_;
-  cv::Point2f roi_data_point_;
+  cv::Point2f roi_data_point_r_;
+  cv::Point2f roi_data_point_l_;
   cv::Mat_<float> discoeffs_;
   cv::Mat_<float> camera_matrix_;
   std::vector<float> discoeffs_vec_;
