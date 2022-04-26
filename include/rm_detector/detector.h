@@ -73,6 +73,11 @@ public:
   bool turn_on_image_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig> server_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig>::CallbackType callback_;
+  std::string nodelet_name_;
+  std::string camera_pub_name_;
+  std::string roi_data1_name_;
+  std::string roi_data2_name_;
+  std::string roi_data3_name_;
 
 private:
   ros::NodeHandle nh_;

@@ -23,16 +23,21 @@ void Detector::onInit()
   nh.getParam("g_model_path", model_path_);
   nh.getParam("distortion_coefficients/data", discoeffs_vec_);
   nh.getParam("camera_matrix/data", camera_matrix_vec_);
+  nh.getParam("nodelet_name", nodelet_name_);
+  nh.getParam("camera_pub_name", camera_pub_name_);
+  nh.getParam("roi_data1_name", roi_data1_name_);
+  nh.getParam("roi_data2_name", roi_data2_name_);
+  nh.getParam("roi_data3_name", roi_data3_name_);
   setDataToMatrix(discoeffs_vec_, camera_matrix_vec_);
   callback_ = boost::bind(&Detector::dynamicCallback, this, _1);
   server_.setCallback(callback_);
-  nh_ = ros::NodeHandle(nh, "detector_node");
+  nh_ = ros::NodeHandle(nh, nodelet_name_);
   camera_sub_ = nh_.subscribe("/galaxy_camera/image_raw", 1, &Detector::receiveFromCam, this);
-  camera_pub_ = nh_.advertise<sensor_msgs::Image>("armor_detect", 1);
+  camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1);
 
-  roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>("roi_data1", 1);
-  roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>("roi_data2", 1);
-  roi_data_pub3_ = nh_.advertise<std_msgs::Float32MultiArray>("roi_data3", 1);
+  roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data1_name_, 1);
+  roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data2_name_, 1);
+  roi_data_pub3_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data3_name_, 1);
 
   roi_data_pub_vec.push_back(roi_data_pub1_);
   roi_data_pub_vec.push_back(roi_data_pub1_);
