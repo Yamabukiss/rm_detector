@@ -76,6 +76,8 @@ cv::Mat Detector::staticResize(cv::Mat& img)
   // r = std::min(r, 1.0f);
   int unpad_w = r * img.cols;
   int unpad_h = r * img.rows;
+  cv::copyMakeBorder(img, img, 0, 0, abs(img.rows - img.cols) / 2, abs(img.rows - img.cols) / 2, cv::BORDER_CONSTANT,
+                     cv::Scalar(122, 122, 122));
   cv::resize(img, img, cv::Size(unpad_w, unpad_h));
   cv::Mat out(INPUT_H, INPUT_W, CV_8UC3, cv::Scalar(114, 114, 114));
   img.copyTo(out(cv::Rect(0, 0, img.cols, img.rows)));
