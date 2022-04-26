@@ -307,8 +307,8 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
   {
     roi_point_vec_.clear();
     roi_data_.data.clear();
-    roi_data_point_.x = objects_[i].rect.x;
-    roi_data_point_.y = objects_[i].rect.y;
+    roi_data_point_.x = objects_[i].rect.br().x;  // rd point x
+    roi_data_point_.y = objects_[i].rect.br().y;  // rd point y
     roi_point_vec_.push_back(roi_data_point_);
     cv::undistortPoints(roi_point_vec_, roi_point_vec_, camera_matrix_, discoeffs_, cv::noArray());
     roi_data_.data.push_back(roi_point_vec_[0].x);
