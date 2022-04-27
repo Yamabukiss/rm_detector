@@ -4,8 +4,8 @@
 //
 
 #include <rm_detector/detector.h>
-#define INPUT_W 640
-#define INPUT_H 640
+#define INPUT_W 416
+#define INPUT_H 416
 #define NUM_CLASSES 1
 
 namespace rm_detector
@@ -15,6 +15,7 @@ Detector::Detector()
   nms_thresh_ = 0.1;
   bbox_conf_thresh_ = 0.1;
   turn_on_image_ = true;
+  mblob_ = nullptr;
 }
 
 void Detector::onInit()
@@ -33,11 +34,11 @@ void Detector::onInit()
   server_.setCallback(callback_);
   nh_ = ros::NodeHandle(nh, nodelet_name_);
   camera_sub_ = nh_.subscribe("/galaxy_camera/image_raw", 1, &Detector::receiveFromCam, this);
-  camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1);
+  camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1000);
 
-  roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data1_name_, 1);
-  roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data2_name_, 1);
-  roi_data_pub3_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data3_name_, 1);
+  roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data1_name_, 1000);
+  roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data2_name_, 1000);
+  roi_data_pub3_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data3_name_, 1000);
 
   roi_data_pub_vec.push_back(roi_data_pub1_);
   roi_data_pub_vec.push_back(roi_data_pub1_);
@@ -71,11 +72,9 @@ void Detector::setDataToMatrix(std::vector<float> disc_vec, std::vector<float> c
 
 cv::Mat Detector::staticResize(cv::Mat& img)
 {
-  float r = std::min(INPUT_W / (img.cols * 1.0), INPUT_H / (img.rows * 1.0));
-  r_ = r;
   // r = std::min(r, 1.0f);
-  int unpad_w = r * img.cols;
-  int unpad_h = r * img.rows;
+  int unpad_w = scale_ * img.cols;
+  int unpad_h = scale_ * img.rows;
   cv::copyMakeBorder(img, img, abs(img.rows - img.cols) / 2, abs(img.rows - img.cols) / 2, 0, 0, cv::BORDER_CONSTANT,
                      cv::Scalar(122, 122, 122));
   cv::resize(img, img, cv::Size(unpad_w, unpad_h));
@@ -84,20 +83,20 @@ cv::Mat Detector::staticResize(cv::Mat& img)
   return out;
 }
 
-void Detector::blobFromImage(cv::Mat& img, InferenceEngine::MemoryBlob::Ptr& mblob)
+void Detector::blobFromImage(cv::Mat& img)
 {
   int channels = 3;
   int img_h = img.rows;
   int img_w = img.cols;
-  if (!mblob)
+  if (!mblob_)
   {
     THROW_IE_EXCEPTION << "We expect blob to be inherited from MemoryBlob in matU8ToBlob, "
                        << "but by fact we were not able to cast inputBlob to MemoryBlob";
   }
   // locked memory holder should be alive all time while access to its buffer happens
-  auto mblobHolder = mblob->wmap();
+  auto mblob_holder = mblob_->wmap();
 
-  float* blob_data = mblobHolder.as<float*>();
+  float* blob_data = mblob_holder.as<float*>();
 
   for (size_t c = 0; c < channels; c++)
   {
@@ -289,10 +288,15 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
     objects_[i] = proposals[picked[i]];
 
     // adjust offset to original unpadded
-    float x0 = (objects_[i].rect.x) / scale;
-    float y0 = (objects_[i].rect.y) / scale;
-    float x1 = (objects_[i].rect.x + objects_[i].rect.width) / scale;
-    float y1 = (objects_[i].rect.y + objects_[i].rect.height) / scale;
+    //    float x0 = (objects_[i].rect.x) / scale;
+    //    float y0 = (objects_[i].rect.y) / scale;
+    //    float x1 = (objects_[i].rect.x + objects_[i].rect.width) / scale;
+    //    float y1 = (objects_[i].rect.y + objects_[i].rect.height) / scale;
+
+    float x0 = (objects_[i].rect.x);
+    float y0 = (objects_[i].rect.y);
+    float x1 = (objects_[i].rect.x + objects_[i].rect.width);
+    float y1 = (objects_[i].rect.y + objects_[i].rect.height);
 
     // clip
     x0 = std::max(std::min(x0, (float)(img_w - 1)), 0.f);
@@ -307,20 +311,28 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
   }  // make the real object
   for (size_t i = 0; i < objects_.size(); i++)
   {
+    //    pthread_mutex_lock(&mutex_);
     roi_point_vec_.clear();
     roi_data_.data.clear();
-    roi_data_point_r_.x = (objects_[i].rect.br().x) / r_;  // rd point x
-    roi_data_point_r_.y = (objects_[i].rect.br().y) / r_;  // rd point y
-    roi_data_point_l_.x = (objects_[i].rect.tl().x) / r_;  // rd point y
-    roi_data_point_l_.y = (objects_[i].rect.tl().y) / r_;  // rd point y
+    //    pthread_mutex_unlock(&mutex_);
+
+    roi_data_point_l_.x = (objects_[i].rect.tl().x) / scale_;
+    roi_data_point_l_.y = (objects_[i].rect.tl().y - (abs(img_w - img_h) / 2)) / scale_;
+    roi_data_point_r_.x = (objects_[i].rect.br().x) / scale_;
+    roi_data_point_r_.y = (objects_[i].rect.br().y - (abs(img_w - img_h) / 2)) / scale_;
+
     roi_point_vec_.push_back(roi_data_point_l_);
     roi_point_vec_.push_back(roi_data_point_r_);
+
     cv::undistortPoints(roi_point_vec_, roi_point_vec_, camera_matrix_, discoeffs_, cv::noArray());
+
     roi_data_.data.push_back(roi_point_vec_[0].x);
     roi_data_.data.push_back(roi_point_vec_[0].y);
     roi_data_.data.push_back(roi_point_vec_[1].x);
     roi_data_.data.push_back(roi_point_vec_[1].y);
+    //    pthread_mutex_lock(&mutex_);
     roi_data_pub_vec[i].publish(roi_data_);
+    //    pthread_mutex_unlock(&mutex_);
   }
 }
 
@@ -343,7 +355,7 @@ void Detector::drawObjects(const cv::Mat& bgr, const std::vector<Object>& object
     //            txt_color = cv::Scalar(255, 255, 255);
     //        }
 
-    cv::rectangle(bgr, objects_[i].rect, cv::Scalar(255, 0, 0), 3);
+    cv::rectangle(bgr, objects_[i].rect, cv::Scalar(255, 0, 0), 2);
 
     //        char text[256];
     //        sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
@@ -372,17 +384,14 @@ void Detector::drawObjects(const cv::Mat& bgr, const std::vector<Object>& object
 
 void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr, std::vector<Object> objects_)
 {
+  scale_ = std::min(INPUT_W / (image_ptr->image.cols * 1.0), INPUT_H / (image_ptr->image.rows * 1.0));
   cv::Mat pr_img = staticResize(image_ptr->image);
-  blobFromImage(pr_img, mblob_);
+  blobFromImage(pr_img);
 
   infer_request_.StartAsync();
   infer_request_.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-
-  int img_w = image_ptr->image.cols;
-  int img_h = image_ptr->image.rows;
-  float scale = std::min(INPUT_W / (image_ptr->image.cols * 1.0), INPUT_H / (image_ptr->image.rows * 1.0));
-
-  decodeOutputs(net_pred_, objects_, scale, img_w, img_h);
+  //  pthread_mutex_init(&mutex_, nullptr);
+  decodeOutputs(net_pred_, objects_, scale_, image_ptr->image.cols, image_ptr->image.rows);
   if (turn_on_image_)
     drawObjects(image_ptr->image, objects_);
 }
@@ -394,26 +403,26 @@ void Detector::initalizeInfer()
   std::string input_name = network.getInputsInfo().begin()->first;
   std::string output_name = network.getOutputsInfo().begin()->first;
   InferenceEngine::DataPtr output_info = network.getOutputsInfo().begin()->second;
-  output_info->setPrecision(InferenceEngine::Precision::FP16);
+  output_info->setPrecision(InferenceEngine::Precision::FP32);
   std::map<std::string, std::string> config = {
     { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO },
     { InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, InferenceEngine::PluginConfigParams::NUMA },
     { InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-      InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA }
-    //    { InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "16" }
+      InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA },
+    { InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "16" }
   };
   InferenceEngine::ExecutableNetwork executable_network = ie.LoadNetwork(network, "CPU", config);
-  infer_request_ = executable_network.CreateInferRequest();
-
+  InferenceEngine::InferRequest infer_request = executable_network.CreateInferRequest();
+  infer_request_ = infer_request;
   const InferenceEngine::Blob::Ptr output_blob = infer_request_.GetBlob(output_name);
   InferenceEngine::MemoryBlob::CPtr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(output_blob);
   auto moutput_holder = moutput->rmap();
-  net_pred_ = reinterpret_cast<const float*>(
-      moutput_holder.as<const InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type*>());
-  //    net_pred_=net_pred;
+  const float* net_pred =
+      moutput_holder.as<const InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
+  net_pred_ = net_pred;
   InferenceEngine::Blob::Ptr img_blob = infer_request_.GetBlob(input_name);
-  mblob_ = InferenceEngine::as<InferenceEngine::MemoryBlob>(img_blob);
-  //    mblob_=mblob;
+  InferenceEngine::MemoryBlob::Ptr memory_blob = InferenceEngine::as<InferenceEngine::MemoryBlob>(img_blob);
+  mblob_ = memory_blob;
 }
 Detector::~Detector()
 {

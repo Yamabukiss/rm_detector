@@ -40,7 +40,7 @@ public:
   void onInit() override;
   void receiveFromCam(const sensor_msgs::ImageConstPtr& image);
   cv::Mat staticResize(cv::Mat& img);
-  void blobFromImage(cv::Mat& img, InferenceEngine::MemoryBlob::Ptr& mblob);
+  void blobFromImage(cv::Mat& img);
   void generateGridsAndStride(const int target_w, const int target_h);
   void generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr, float prob_threshold,
                               std::vector<Object>& objects);
@@ -69,9 +69,9 @@ public:
   cv::Mat_<float> camera_matrix_;
   std::vector<float> discoeffs_vec_;
   std::vector<float> camera_matrix_vec_;
-  float r_;
   std::vector<Object> objects_;
   std::string model_path_;
+  float scale_;
   bool turn_on_image_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig> server_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig>::CallbackType callback_;
