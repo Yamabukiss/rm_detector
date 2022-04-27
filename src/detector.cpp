@@ -34,11 +34,11 @@ void Detector::onInit()
   server_.setCallback(callback_);
   nh_ = ros::NodeHandle(nh, nodelet_name_);
   camera_sub_ = nh_.subscribe("/galaxy_camera/image_raw", 1, &Detector::receiveFromCam, this);
-  camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1000);
+  camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1);
 
-  roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data1_name_, 1000);
-  roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data2_name_, 1000);
-  roi_data_pub3_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data3_name_, 1000);
+  roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data1_name_, 1);
+  roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data2_name_, 1);
+  roi_data_pub3_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data3_name_, 1);
 
   roi_data_pub_vec.push_back(roi_data_pub1_);
   roi_data_pub_vec.push_back(roi_data_pub1_);
