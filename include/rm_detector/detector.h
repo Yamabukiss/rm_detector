@@ -72,6 +72,7 @@ public:
   std::vector<Object> objects_;
   std::string model_path_;
   float scale_;
+  float undistort_bool_;
   bool turn_on_image_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig> server_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig>::CallbackType callback_;

@@ -60,6 +60,7 @@ void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
   nms_thresh_ = config.g_nms_thresh;
   bbox_conf_thresh_ = config.g_bbox_conf_thresh;
   turn_on_image_ = config.g_turn_on_image;
+  undistort_bool_ = config.g_undistort_bool;
   ROS_INFO("Changes have been seted");
 }
 
@@ -324,7 +325,10 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
     roi_point_vec_.push_back(roi_data_point_l_);
     roi_point_vec_.push_back(roi_data_point_r_);
 
-    cv::undistortPoints(roi_point_vec_, roi_point_vec_, camera_matrix_, discoeffs_, cv::noArray());
+    if (undistort_bool_)
+    {
+      cv::undistortPoints(roi_point_vec_, roi_point_vec_, camera_matrix_, discoeffs_, cv::noArray());
+    }
 
     roi_data_.data.push_back(roi_point_vec_[0].x);
     roi_data_.data.push_back(roi_point_vec_[0].y);
