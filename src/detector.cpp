@@ -318,9 +318,9 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
     //    pthread_mutex_unlock(&mutex_);
 
     roi_data_point_l_.x = (objects_[i].rect.tl().x) / scale_;
-    roi_data_point_l_.y = (objects_[i].rect.tl().y - (abs(img_w - img_h) / 2)) / scale_;
+    roi_data_point_l_.y = ((objects_[i].rect.tl().y) / scale_) - (abs(img_w - img_h) / 2);
     roi_data_point_r_.x = (objects_[i].rect.br().x) / scale_;
-    roi_data_point_r_.y = (objects_[i].rect.br().y - (abs(img_w - img_h) / 2)) / scale_;
+    roi_data_point_r_.y = ((objects_[i].rect.br().y) / scale_) - (abs(img_w - img_h) / 2);
 
     roi_point_vec_.push_back(roi_data_point_l_);
     roi_point_vec_.push_back(roi_data_point_r_);
