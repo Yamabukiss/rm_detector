@@ -71,17 +71,20 @@ void Detector::setDataToMatrix(std::vector<float> disc_vec, std::vector<float> c
                     cam_vec[6], cam_vec[7], cam_vec[8]);
 }
 
-cv::Mat Detector::staticResize(cv::Mat& img)
+void Detector::staticResize(cv::Mat& img)
 {
   // r = std::min(r, 1.0f);
   int unpad_w = scale_ * img.cols;
   int unpad_h = scale_ * img.rows;
+  int resize_unpad = std::max(unpad_h, unpad_w);
+  //  auto origin_img_ptr = std::make_shared<cv::Mat>(img);
+  origin_img_w_ = img.cols;
+  origin_img_h_ = img.rows;
   cv::copyMakeBorder(img, img, abs(img.rows - img.cols) / 2, abs(img.rows - img.cols) / 2, 0, 0, cv::BORDER_CONSTANT,
                      cv::Scalar(122, 122, 122));
-  cv::resize(img, img, cv::Size(unpad_w, unpad_h));
-  cv::Mat out(INPUT_H, INPUT_W, CV_8UC3, cv::Scalar(114, 114, 114));
-  img.copyTo(out(cv::Rect(0, 0, img.cols, img.rows)));
-  return out;
+  cv::resize(img, img, cv::Size(resize_unpad, resize_unpad));
+  //  cv::Mat out(INPUT_H, INPUT_W, CV_8UC3, cv::Scalar(114, 114, 114));
+  //  img.copyTo(out(cv::Rect(0, 0, img.cols, img.rows)));
 }
 
 void Detector::blobFromImage(cv::Mat& img)
@@ -318,9 +321,9 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
     //    pthread_mutex_unlock(&mutex_);
 
     roi_data_point_l_.x = (objects_[i].rect.tl().x) / scale_;
-    roi_data_point_l_.y = ((objects_[i].rect.tl().y) / scale_) - (abs(img_w - img_h) / 2);
+    roi_data_point_l_.y = ((objects_[i].rect.tl().y) / scale_) - (abs(origin_img_w_ - origin_img_h_) / 2);
     roi_data_point_r_.x = (objects_[i].rect.br().x) / scale_;
-    roi_data_point_r_.y = ((objects_[i].rect.br().y) / scale_) - (abs(img_w - img_h) / 2);
+    roi_data_point_r_.y = ((objects_[i].rect.br().y) / scale_) - (abs(origin_img_w_ - origin_img_h_) / 2);
 
     roi_point_vec_.push_back(roi_data_point_l_);
     roi_point_vec_.push_back(roi_data_point_r_);
@@ -389,8 +392,8 @@ void Detector::drawObjects(const cv::Mat& bgr, const std::vector<Object>& object
 void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr, std::vector<Object> objects_)
 {
   scale_ = std::min(INPUT_W / (image_ptr->image.cols * 1.0), INPUT_H / (image_ptr->image.rows * 1.0));
-  cv::Mat pr_img = staticResize(image_ptr->image);
-  blobFromImage(pr_img);
+  staticResize(image_ptr->image);
+  blobFromImage(image_ptr->image);
 
   infer_request_.StartAsync();
   infer_request_.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);

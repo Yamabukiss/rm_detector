@@ -39,7 +39,7 @@ public:
   virtual ~Detector();
   void onInit() override;
   void receiveFromCam(const sensor_msgs::ImageConstPtr& image);
-  cv::Mat staticResize(cv::Mat& img);
+  void staticResize(cv::Mat& img);
   void blobFromImage(cv::Mat& img);
   void generateGridsAndStride(const int target_w, const int target_h);
   void generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr, float prob_threshold,
@@ -71,6 +71,8 @@ public:
   std::vector<float> camera_matrix_vec_;
   std::vector<Object> objects_;
   std::string model_path_;
+  int origin_img_w_;
+  int origin_img_h_;
   float scale_;
   float undistort_bool_;
   bool turn_on_image_;
