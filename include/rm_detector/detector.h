@@ -43,15 +43,15 @@ public:
   void blobFromImage(cv::Mat& img);
   void generateGridsAndStride(const int target_w, const int target_h);
   void generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr, float prob_threshold,
-                              std::vector<Object>& objects);
+                              std::vector<Object>& proposals);
   void setDataToMatrix(std::vector<float> disc_vec, std::vector<float> cam_vec);
   inline float intersectionArea(const Object& a, const Object& b);
   void qsortDescentInplace(std::vector<Object>& faceobjects, int left, int right);
-  void qsortDescentInplace(std::vector<Object>& objects);
+  void qsortDescentInplace(std::vector<Object>& proposals);
   void nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold);
-  void decodeOutputs(const float* prob, std::vector<Object>& objects, float scale, const int img_w, const int img_h);
-  void drawObjects(const cv::Mat& bgr, const std::vector<Object>& objects);
-  void mainFuc(cv_bridge::CvImagePtr& image_ptr, std::vector<Object> objects);
+  void decodeOutputs(const float* prob, const int img_w, const int img_h);
+  void drawObjects(const cv::Mat& bgr);
+  void mainFuc(cv_bridge::CvImagePtr& image_ptr);
   void initalizeInfer();
   void dynamicCallback(rm_detector::dynamicConfig& config);
   cv_bridge::CvImagePtr cv_image_;
@@ -85,6 +85,8 @@ public:
   std::string roi_data3_name_;
   std::string roi_data4_name_;
   std::string roi_data5_name_;
+  bool target_is_red_;
+  bool target_is_blue_;
 
 private:
   ros::NodeHandle nh_;

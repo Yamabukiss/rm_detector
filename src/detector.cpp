@@ -16,6 +16,8 @@ Detector::Detector()
   bbox_conf_thresh_ = 0.1;
   turn_on_image_ = true;
   mblob_ = nullptr;
+  target_is_red_ = true;
+  target_is_blue_ = false;
 }
 
 void Detector::onInit()
@@ -58,7 +60,7 @@ void Detector::onInit()
 void Detector::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
 {
   cv_image_ = boost::make_shared<cv_bridge::CvImage>(*cv_bridge::toCvShare(image, image->encoding));
-  mainFuc(cv_image_, objects_);
+  mainFuc(cv_image_);
   objects_.clear();
 }
 
@@ -143,7 +145,7 @@ void Detector::generateGridsAndStride(const int target_w, const int target_h)
 }
 
 void Detector::generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr,
-                                      float prob_threshold, std::vector<Object>& objects_)
+                                      float prob_threshold, std::vector<Object>& proposals)
 {
   const int num_anchors = grid_strides.size();
 
@@ -238,12 +240,12 @@ void Detector::qsortDescentInplace(std::vector<Object>& faceobjects, int left, i
   }
 }
 
-inline void Detector::qsortDescentInplace(std::vector<Object>& objects_)
+inline void Detector::qsortDescentInplace(std::vector<Object>& proposals)
 {
-  if (objects_.empty())
+  if (proposals.empty())
     return;
 
-  qsortDescentInplace(objects_, 0, objects_.size() - 1);
+  qsortDescentInplace(proposals, 0, proposals.size() - 1);
 }
 
 void Detector::nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold)
@@ -280,8 +282,7 @@ void Detector::nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vect
   }
 }
 
-void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, float scale, const int img_w,
-                             const int img_h)
+void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h)
 {
   std::vector<Object> proposals;
   generateYoloxProposals(grid_strides_, prob, bbox_conf_thresh_, proposals);  // initial filtrate
@@ -349,7 +350,7 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
   }
 }
 
-void Detector::drawObjects(const cv::Mat& bgr, const std::vector<Object>& objects_)
+void Detector::drawObjects(const cv::Mat& bgr)
 {
   //        static const char* class_names[] = {
   //                "armor"
@@ -395,7 +396,7 @@ void Detector::drawObjects(const cv::Mat& bgr, const std::vector<Object>& object
   camera_pub_.publish(cv_bridge::CvImage(std_msgs::Header(), "bgr8", bgr).toImageMsg());
 }
 
-void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr, std::vector<Object> objects_)
+void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr)
 {
   scale_ = std::min(INPUT_W / (image_ptr->image.cols * 1.0), INPUT_H / (image_ptr->image.rows * 1.0));
   staticResize(image_ptr->image);
@@ -403,9 +404,9 @@ void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr, std::vector<Object> obj
 
   infer_request_.StartAsync();
   infer_request_.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-  decodeOutputs(net_pred_, objects_, scale_, image_ptr->image.cols, image_ptr->image.rows);
+  decodeOutputs(net_pred_, image_ptr->image.cols, image_ptr->image.rows);
   if (turn_on_image_)
-    drawObjects(image_ptr->image, objects_);
+    drawObjects(image_ptr->image);
 }
 
 void Detector::initalizeInfer()
