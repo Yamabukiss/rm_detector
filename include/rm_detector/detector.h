@@ -83,6 +83,8 @@ public:
   std::string roi_data1_name_;
   std::string roi_data2_name_;
   std::string roi_data3_name_;
+  std::string roi_data4_name_;
+  std::string roi_data5_name_;
 
 private:
   ros::NodeHandle nh_;
@@ -92,5 +94,7 @@ private:
   ros::Publisher roi_data_pub1_;
   ros::Publisher roi_data_pub2_;
   ros::Publisher roi_data_pub3_;
+  ros::Publisher roi_data_pub4_;
+  ros::Publisher roi_data_pub5_;
 };
 }  // namespace rm_detector

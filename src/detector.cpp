@@ -4,8 +4,8 @@
 //
 
 #include <rm_detector/detector.h>
-#define INPUT_W 416
-#define INPUT_H 416
+#define INPUT_W 640
+#define INPUT_H 640
 #define NUM_CLASSES 1
 
 namespace rm_detector
@@ -29,20 +29,27 @@ void Detector::onInit()
   nh.getParam("roi_data1_name", roi_data1_name_);
   nh.getParam("roi_data2_name", roi_data2_name_);
   nh.getParam("roi_data3_name", roi_data3_name_);
+  nh.getParam("roi_data4_name", roi_data4_name_);
+  nh.getParam("roi_data5_name", roi_data5_name_);
   setDataToMatrix(discoeffs_vec_, camera_matrix_vec_);
   callback_ = boost::bind(&Detector::dynamicCallback, this, _1);
   server_.setCallback(callback_);
   nh_ = ros::NodeHandle(nh, nodelet_name_);
+  sleep(2);
   camera_sub_ = nh_.subscribe("/galaxy_camera/image_raw", 1, &Detector::receiveFromCam, this);
   camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1);
 
   roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data1_name_, 1);
   roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data2_name_, 1);
   roi_data_pub3_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data3_name_, 1);
+  roi_data_pub4_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data4_name_, 1);
+  roi_data_pub5_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data5_name_, 1);
 
   roi_data_pub_vec.push_back(roi_data_pub1_);
-  roi_data_pub_vec.push_back(roi_data_pub1_);
-  roi_data_pub_vec.push_back(roi_data_pub1_);
+  roi_data_pub_vec.push_back(roi_data_pub2_);
+  roi_data_pub_vec.push_back(roi_data_pub3_);
+  roi_data_pub_vec.push_back(roi_data_pub4_);
+  roi_data_pub_vec.push_back(roi_data_pub5_);
   initalizeInfer();
 
   generateGridsAndStride(INPUT_W, INPUT_H);  // the wide height strides need to be changed depending on demand
@@ -285,6 +292,8 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
   std::vector<int> picked;
   nmsSortedBboxes(proposals, picked, nms_thresh_);
   int count = picked.size();
+  if (count > 5)
+    count = 5;
   objects_.resize(count);
 
   for (int i = 0; i < count; i++)
@@ -313,12 +322,11 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
     objects_[i].rect.width = x1 - x0;
     objects_[i].rect.height = y1 - y0;
   }  // make the real object
-  for (size_t i = 0; i < objects_.size(); i++)
+     //  for (size_t i = 0; i < objects_.size(); i++)
+  for (size_t i = 0; i < 5; i++)
   {
-    //    pthread_mutex_lock(&mutex_);
     roi_point_vec_.clear();
     roi_data_.data.clear();
-    //    pthread_mutex_unlock(&mutex_);
 
     roi_data_point_l_.x = (objects_[i].rect.tl().x) / scale_;
     roi_data_point_l_.y = ((objects_[i].rect.tl().y) / scale_) - (abs(origin_img_w_ - origin_img_h_) / 2);
@@ -337,9 +345,7 @@ void Detector::decodeOutputs(const float* prob, std::vector<Object>& objects_, f
     roi_data_.data.push_back(roi_point_vec_[0].y);
     roi_data_.data.push_back(roi_point_vec_[1].x);
     roi_data_.data.push_back(roi_point_vec_[1].y);
-    //    pthread_mutex_lock(&mutex_);
     roi_data_pub_vec[i].publish(roi_data_);
-    //    pthread_mutex_unlock(&mutex_);
   }
 }
 
@@ -397,7 +403,6 @@ void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr, std::vector<Object> obj
 
   infer_request_.StartAsync();
   infer_request_.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-  //  pthread_mutex_init(&mutex_, nullptr);
   decodeOutputs(net_pred_, objects_, scale_, image_ptr->image.cols, image_ptr->image.rows);
   if (turn_on_image_)
     drawObjects(image_ptr->image, objects_);
