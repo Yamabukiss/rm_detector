@@ -50,6 +50,7 @@ public:
   void qsortDescentInplace(std::vector<Object>& proposals);
   void nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold);
   void decodeOutputs(const float* prob, const int img_w, const int img_h);
+  void select_target_color(std::vector<Object>& proposals);
   void drawObjects(const cv::Mat& bgr);
   void mainFuc(cv_bridge::CvImagePtr& image_ptr);
   void initalizeInfer();
@@ -87,10 +88,18 @@ public:
   std::string roi_data5_name_;
   bool target_is_red_;
   bool target_is_blue_;
+  cv::Mat roi_picture_;
+  cv::Mat roi_hsv_picture_;
+  std::vector<cv::Mat> roi_hsv_picture_vec;
+  cv::Mat binary_red_picture_;
+  cv::Mat binary_blue_picture_;
+  int counter_of_pixel_;
+  float ratio_of_pixels_;
 
 private:
   ros::NodeHandle nh_;
   ros::Publisher camera_pub_;
+  ros::Publisher camera_pub2_;
   ros::Subscriber camera_sub_;
   std::vector<ros::Publisher> roi_data_pub_vec;
   ros::Publisher roi_data_pub1_;

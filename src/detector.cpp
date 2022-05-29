@@ -7,7 +7,6 @@
 #define INPUT_W 640
 #define INPUT_H 640
 #define NUM_CLASSES 1
-
 namespace rm_detector
 {
 Detector::Detector()
@@ -16,8 +15,7 @@ Detector::Detector()
   bbox_conf_thresh_ = 0.1;
   turn_on_image_ = true;
   mblob_ = nullptr;
-  target_is_red_ = true;
-  target_is_blue_ = false;
+  ratio_of_pixels_ = 0.5;
 }
 
 void Detector::onInit()
@@ -40,6 +38,7 @@ void Detector::onInit()
   sleep(2);
   camera_sub_ = nh_.subscribe("/galaxy_camera/image_raw", 1, &Detector::receiveFromCam, this);
   camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1);
+  camera_pub2_ = nh_.advertise<sensor_msgs::Image>("hsv_publisher", 1);
 
   roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data1_name_, 1);
   roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data2_name_, 1);
@@ -62,6 +61,8 @@ void Detector::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
   cv_image_ = boost::make_shared<cv_bridge::CvImage>(*cv_bridge::toCvShare(image, image->encoding));
   mainFuc(cv_image_);
   objects_.clear();
+  roi_hsv_picture_vec.clear();
+  counter_of_pixel_ = 0;
 }
 
 void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
@@ -70,7 +71,10 @@ void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
   bbox_conf_thresh_ = config.g_bbox_conf_thresh;
   turn_on_image_ = config.g_turn_on_image;
   undistort_bool_ = config.g_undistort_bool;
-  ROS_INFO("Changes have been seted");
+  target_is_red_ = config.target_is_red;
+  target_is_blue_ = config.target_is_blue;
+  ratio_of_pixels_ = config.ratio_of_pixels;
+  ROS_INFO("Settings have been seted");
 }
 
 void Detector::setDataToMatrix(std::vector<float> disc_vec, std::vector<float> cam_vec)
@@ -187,12 +191,10 @@ void Detector::generateYoloxProposals(std::vector<GridAndStride> grid_strides, c
         obj.label = class_idx;
         obj.prob = box_prob;
 
-        objects_.push_back(obj);
+        proposals.push_back(obj);
       }
-
-    }  // class loop
-
-  }  // point anchor loop
+    }
+  }
 }
 
 inline float Detector::intersectionArea(const Object& a, const Object& b)
@@ -282,6 +284,72 @@ void Detector::nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vect
   }
 }
 
+void Detector::select_target_color(std::vector<Object>& proposals)
+{
+  for (int i = 0; i < proposals.size(); i++)
+  {
+    cv::Rect rect(proposals[i].rect.tl().x, proposals[i].rect.tl().y, proposals[i].rect.width, proposals[i].rect.height);
+    if (rect.tl().x < 0)
+      rect.x = 0;
+    if (rect.br().x > 640)
+      rect.x = cv_image_->image.cols - rect.width;
+    if (rect.tl().y < 0)
+      rect.y = 0;
+    if (rect.br().y > 640)
+      rect.y = cv_image_->image.rows - rect.height;
+    roi_picture_ = cv_image_->image(rect);
+    cv::cvtColor(roi_picture_, roi_hsv_picture_, cv::COLOR_BGR2HSV);
+    roi_hsv_picture_vec.push_back(roi_hsv_picture_);
+  }
+
+  std::vector<Object> filter_objects;
+
+  // select the target's color
+  if (target_is_red_)
+  {
+    for (int i = 0; i < roi_hsv_picture_vec.size(); i++)
+    {
+      cv::inRange(roi_hsv_picture_vec[i], cv::Scalar(42, 0, 216), cv::Scalar(105, 255, 255), binary_red_picture_);
+
+      for (int j = 0; j < binary_red_picture_.cols; j++)
+      {
+        for (int k = 0; k < binary_red_picture_.rows; k++)
+        {
+          if (binary_red_picture_.at<uchar>(j, k) == 255)
+            counter_of_pixel_++;
+        }
+      }
+      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", binary_red_picture_).toImageMsg());
+      if (counter_of_pixel_ / (binary_red_picture_.rows * binary_red_picture_.cols) > ratio_of_pixels_)
+        filter_objects.push_back(proposals[i]);
+    }
+    std::cout << filter_objects.size() << std::endl;
+    proposals.assign(filter_objects.begin(), filter_objects.end());
+  }
+
+  else if (target_is_blue_)
+  {
+    for (int i = 0; i < roi_hsv_picture_vec.size(); i++)
+    {
+      cv::inRange(roi_hsv_picture_vec[i], cv::Scalar(25, 40, 225), cv::Scalar(36, 255, 255), binary_blue_picture_);
+
+      for (int j = 0; j < binary_blue_picture_.cols; j++)
+      {
+        for (int k = 0; k < binary_blue_picture_.rows; k++)
+        {
+          if (binary_blue_picture_.at<uchar>(j, k) == 255)
+            counter_of_pixel_++;
+        }
+      }
+      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", binary_blue_picture_).toImageMsg());
+      if (counter_of_pixel_ / (binary_blue_picture_.rows * binary_blue_picture_.cols) > ratio_of_pixels_)
+        filter_objects.push_back(proposals[i]);
+    }
+    std::cout << filter_objects.size() << std::endl;
+    proposals.assign(filter_objects.begin(), filter_objects.end());
+  }
+}
+
 void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h)
 {
   std::vector<Object> proposals;
@@ -292,6 +360,11 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
 
   std::vector<int> picked;
   nmsSortedBboxes(proposals, picked, nms_thresh_);
+
+  //  select_target_color(proposals);
+
+  //  std::cout << "proposals:" << proposals.size() << std::endl;
+  //  std::cout << "picked:" << picked.size() << std::endl;
   int count = picked.size();
   if (count > 5)
     count = 5;
@@ -324,6 +397,9 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
     objects_[i].rect.height = y1 - y0;
   }  // make the real object
      //  for (size_t i = 0; i < objects_.size(); i++)
+
+  //  std::cout << "objects_:" << objects_.size() << std::endl;
+
   for (size_t i = 0; i < 5; i++)
   {
     roi_point_vec_.clear();

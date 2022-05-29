@@ -8,7 +8,7 @@
   <node pkg="nodelet" type="nodelet" name="nodelet_manager"  args="manager" output="screen"/>
   <!-- nodelet'tag should follow obey the following format -->
      <node pkg="nodelet" type="nodelet" name="armor_detect_nodelet" args="load rm_detector/armor_detector nodelet_manager" output="screen" >
-     <param name="g_model_path"  type="string" value="$(find rm_detector)/0.33depth640.onnx"/>
+     <param name="g_model_path"  type="string" value="$(find rm_detector)/0.66depth640.onnx"/>
      <param name="nodelet_name"  type="string" value="detector_nodelet"/>
      <param name="camera_pub_name"  type="string" value="armor_detector_image_publisher"/>
      <param name="roi_data1_name"  type="string" value="roi_data1"/>
@@ -28,7 +28,7 @@
     <param name="camera_sn" value="KE0200060392"/>
     <param name="enable_imu_trigger" value="$(arg enable_imu_trigger)"/>
     <param name="raising_filter_value" value="0"/>
-    <param name="frame_rate" value="60"/>
+    <param name="frame_rate" value="30"/>
   </node>
 
 </launch>
