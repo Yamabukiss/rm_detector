@@ -11,11 +11,7 @@ namespace rm_detector
 {
 Detector::Detector()
 {
-  nms_thresh_ = 0.1;
-  bbox_conf_thresh_ = 0.1;
-  turn_on_image_ = true;
   mblob_ = nullptr;
-  ratio_of_pixels_ = 0.5;
 }
 
 void Detector::onInit()
@@ -31,14 +27,15 @@ void Detector::onInit()
   nh.getParam("roi_data3_name", roi_data3_name_);
   nh.getParam("roi_data4_name", roi_data4_name_);
   nh.getParam("roi_data5_name", roi_data5_name_);
-  setDataToMatrix(discoeffs_vec_, camera_matrix_vec_);
-  callback_ = boost::bind(&Detector::dynamicCallback, this, _1);
-  server_.setCallback(callback_);
-  nh_ = ros::NodeHandle(nh, nodelet_name_);
-  sleep(2);
+//  setDataToMatrix(discoeffs_vec_, camera_matrix_vec_);
+    initalizeInfer();
+    callback_ = boost::bind(&Detector::dynamicCallback, this, _1);
+    server_.setCallback(callback_);
+
+    nh_ = ros::NodeHandle(nh, nodelet_name_);
   camera_sub_ = nh_.subscribe("/galaxy_camera/image_raw", 1, &Detector::receiveFromCam, this);
   camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1);
-  camera_pub2_ = nh_.advertise<sensor_msgs::Image>("hsv_publisher", 1);
+  camera_pub2_ = nh_.advertise<sensor_msgs::Image>("sub_publisher", 1);
 
   roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data1_name_, 1);
   roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data2_name_, 1);
@@ -51,7 +48,6 @@ void Detector::onInit()
   roi_data_pub_vec.push_back(roi_data_pub3_);
   roi_data_pub_vec.push_back(roi_data_pub4_);
   roi_data_pub_vec.push_back(roi_data_pub5_);
-  initalizeInfer();
 
   generateGridsAndStride(INPUT_W, INPUT_H);  // the wide height strides need to be changed depending on demand
 }
@@ -61,8 +57,7 @@ void Detector::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
   cv_image_ = boost::make_shared<cv_bridge::CvImage>(*cv_bridge::toCvShare(image, image->encoding));
   mainFuc(cv_image_);
   objects_.clear();
-  roi_hsv_picture_vec.clear();
-  counter_of_pixel_ = 0;
+  roi_picture_vec_.clear();
 }
 
 void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
@@ -74,6 +69,7 @@ void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
   target_is_red_ = config.target_is_red;
   target_is_blue_ = config.target_is_blue;
   ratio_of_pixels_ = config.ratio_of_pixels;
+  pixels_thresh_ = config.pixels_thresh;
   ROS_INFO("Settings have been seted");
 }
 
@@ -284,9 +280,10 @@ void Detector::nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vect
   }
 }
 
-void Detector::select_target_color(std::vector<Object>& proposals)
+void Detector::selectTargetColor(std::vector<Object>& proposals)
 {
-  for (int i = 0; i < proposals.size(); i++)
+
+    for (int i = 0; i < proposals.size(); i++)
   {
     cv::Rect rect(proposals[i].rect.tl().x, proposals[i].rect.tl().y, proposals[i].rect.width, proposals[i].rect.height);
     if (rect.tl().x < 0)
@@ -298,54 +295,61 @@ void Detector::select_target_color(std::vector<Object>& proposals)
     if (rect.br().y > 640)
       rect.y = cv_image_->image.rows - rect.height;
     roi_picture_ = cv_image_->image(rect);
-    cv::cvtColor(roi_picture_, roi_hsv_picture_, cv::COLOR_BGR2HSV);
-    roi_hsv_picture_vec.push_back(roi_hsv_picture_);
+    roi_picture_vec_.push_back(roi_picture_);
   }
-
   std::vector<Object> filter_objects;
 
   // select the target's color
   if (target_is_red_)
   {
-    for (int i = 0; i < roi_hsv_picture_vec.size(); i++)
+    for (int i = 0; i < roi_picture_vec_.size(); i++)
     {
-      cv::inRange(roi_hsv_picture_vec[i], cv::Scalar(42, 0, 216), cv::Scalar(105, 255, 255), binary_red_picture_);
+        cv::split(roi_picture_vec_[i],roi_picture_split_vec_);
+        cv::Mat r_decrease_b; //r-b
+        cv::subtract(roi_picture_split_vec_[2],roi_picture_split_vec_[0],r_decrease_b);
 
-      for (int j = 0; j < binary_red_picture_.cols; j++)
+        counter_of_pixel_=0;
+
+      for (int j = 0; j < r_decrease_b.cols; j++)
       {
-        for (int k = 0; k < binary_red_picture_.rows; k++)
+        for (int k = 0; k < r_decrease_b.rows; k++)
         {
-          if (binary_red_picture_.at<uchar>(j, k) == 255)
+          if (r_decrease_b.at<uchar>(j, k) >pixels_thresh_)
             counter_of_pixel_++;
         }
       }
-      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", binary_red_picture_).toImageMsg());
-      if (counter_of_pixel_ / (binary_red_picture_.rows * binary_red_picture_.cols) > ratio_of_pixels_)
+
+      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", r_decrease_b).toImageMsg());
+      if (counter_of_pixel_ / (r_decrease_b.rows * r_decrease_b.cols) > ratio_of_pixels_)
         filter_objects.push_back(proposals[i]);
+      roi_picture_split_vec_.clear();
+
     }
-    std::cout << filter_objects.size() << std::endl;
     proposals.assign(filter_objects.begin(), filter_objects.end());
   }
 
   else if (target_is_blue_)
   {
-    for (int i = 0; i < roi_hsv_picture_vec.size(); i++)
+    for (int i = 0; i < roi_picture_vec_.size(); i++)
     {
-      cv::inRange(roi_hsv_picture_vec[i], cv::Scalar(25, 40, 225), cv::Scalar(36, 255, 255), binary_blue_picture_);
+        cv::split(roi_picture_vec_[i],roi_picture_split_vec_);
+        cv::Mat b_decrease_r;
+        cv::subtract(roi_picture_split_vec_[0],roi_picture_split_vec_[2],b_decrease_r); //b-r
 
-      for (int j = 0; j < binary_blue_picture_.cols; j++)
+        counter_of_pixel_=0;
+        for (int j = 0; j < b_decrease_r.cols; j++)
       {
-        for (int k = 0; k < binary_blue_picture_.rows; k++)
+        for (int k = 0; k < b_decrease_r.rows; k++)
         {
-          if (binary_blue_picture_.at<uchar>(j, k) == 255)
+          if (b_decrease_r.at<uchar>(j, k) >pixels_thresh_)
             counter_of_pixel_++;
         }
       }
-      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", binary_blue_picture_).toImageMsg());
-      if (counter_of_pixel_ / (binary_blue_picture_.rows * binary_blue_picture_.cols) > ratio_of_pixels_)
+      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", b_decrease_r).toImageMsg());
+      if (counter_of_pixel_ / (b_decrease_r.rows * b_decrease_r.cols) > ratio_of_pixels_)
         filter_objects.push_back(proposals[i]);
+      roi_picture_split_vec_.clear();
     }
-    std::cout << filter_objects.size() << std::endl;
     proposals.assign(filter_objects.begin(), filter_objects.end());
   }
 }
@@ -354,17 +358,18 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
 {
   std::vector<Object> proposals;
   generateYoloxProposals(grid_strides_, prob, bbox_conf_thresh_, proposals);  // initial filtrate
-  if (proposals.empty())
-    return;
-  qsortDescentInplace(proposals);
 
+  selectTargetColor(proposals);
+
+  if (proposals.empty()) {
+      return;
+  }
+
+  qsortDescentInplace(proposals);
   std::vector<int> picked;
   nmsSortedBboxes(proposals, picked, nms_thresh_);
 
-  //  select_target_color(proposals);
 
-  //  std::cout << "proposals:" << proposals.size() << std::endl;
-  //  std::cout << "picked:" << picked.size() << std::endl;
   int count = picked.size();
   if (count > 5)
     count = 5;
@@ -398,7 +403,6 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
   }  // make the real object
      //  for (size_t i = 0; i < objects_.size(); i++)
 
-  //  std::cout << "objects_:" << objects_.size() << std::endl;
 
   for (size_t i = 0; i < 5; i++)
   {

@@ -1,5 +1,5 @@
 <launch>
-    <remap from="trigger_time" to="controllers/imu_filter_controller/gimbal_imu/trigger_time"/>
+<!--     <remap from="trigger_time" to="controllers/imu_filter_controller/gimbal_imu/trigger_time"/> -->
 
     <arg name="enable_imu_trigger" default="false"/>
     <arg name="camera_name" default="galaxy_camera"/>
@@ -16,9 +16,9 @@
      <param name="roi_data3_name"  type="string" value="roi_data3"/>
      <param name="roi_data4_name"  type="string" value="roi_data4"/>
      <param name="roi_data5_name"  type="string" value="roi_data5"/>
-     <rosparam command="load" file="$(find rm_detector)/config/camera.yaml" />
+<!--      <rosparam command="load" file="$(find rm_detector)/config/camera.yaml" /> -->
      </node>
-  
+
   <node pkg="nodelet" type="nodelet" name="galaxy_camera" args="load galaxy_camera/GalaxyCameraNodelet nodelet_manager" output="screen">
     <param name="image_width" value="1280"/>
     <param name="image_height" value="1024"/>
@@ -28,7 +28,9 @@
     <param name="camera_sn" value="KE0200060392"/>
     <param name="enable_imu_trigger" value="$(arg enable_imu_trigger)"/>
     <param name="raising_filter_value" value="0"/>
-    <param name="frame_rate" value="30"/>
+    <param name="frame_rate" value="60"/>
   </node>
+
+
 
 </launch>
