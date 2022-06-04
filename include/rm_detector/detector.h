@@ -44,7 +44,6 @@ public:
   void generateGridsAndStride(const int target_w, const int target_h);
   void generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr, float prob_threshold,
                               std::vector<Object>& proposals);
-  void setDataToMatrix(std::vector<float> disc_vec, std::vector<float> cam_vec);
   inline float intersectionArea(const Object& a, const Object& b);
   void qsortDescentInplace(std::vector<Object>& faceobjects, int left, int right);
   void qsortDescentInplace(std::vector<Object>& proposals);
@@ -75,7 +74,6 @@ public:
   int origin_img_w_;
   int origin_img_h_;
   float scale_;
-  float undistort_bool_;
   bool turn_on_image_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig> server_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig>::CallbackType callback_;
@@ -94,6 +92,7 @@ public:
   float ratio_of_pixels_;
   int  counter_of_pixel_;
   int pixels_thresh_;
+  std::vector<Object> filter_objects_;
 
 private:
   ros::NodeHandle nh_;

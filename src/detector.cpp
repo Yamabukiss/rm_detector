@@ -18,8 +18,8 @@ void Detector::onInit()
 {
   ros::NodeHandle nh = getMTPrivateNodeHandle();
   nh.getParam("g_model_path", model_path_);
-  nh.getParam("distortion_coefficients/data", discoeffs_vec_);
-  nh.getParam("camera_matrix/data", camera_matrix_vec_);
+//  nh.getParam("distortion_coefficients/data", discoeffs_vec_);
+//  nh.getParam("camera_matrix/data", camera_matrix_vec_);
   nh.getParam("nodelet_name", nodelet_name_);
   nh.getParam("camera_pub_name", camera_pub_name_);
   nh.getParam("roi_data1_name", roi_data1_name_);
@@ -33,7 +33,7 @@ void Detector::onInit()
     server_.setCallback(callback_);
 
     nh_ = ros::NodeHandle(nh, nodelet_name_);
-  camera_sub_ = nh_.subscribe("/galaxy_camera/image_raw", 1, &Detector::receiveFromCam, this);
+  camera_sub_ = nh_.subscribe("/hk_camera/image_raw", 1, &Detector::receiveFromCam, this);
   camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1);
   camera_pub2_ = nh_.advertise<sensor_msgs::Image>("sub_publisher", 1);
 
@@ -65,19 +65,11 @@ void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
   nms_thresh_ = config.g_nms_thresh;
   bbox_conf_thresh_ = config.g_bbox_conf_thresh;
   turn_on_image_ = config.g_turn_on_image;
-  undistort_bool_ = config.g_undistort_bool;
   target_is_red_ = config.target_is_red;
   target_is_blue_ = config.target_is_blue;
   ratio_of_pixels_ = config.ratio_of_pixels;
   pixels_thresh_ = config.pixels_thresh;
   ROS_INFO("Settings have been seted");
-}
-
-void Detector::setDataToMatrix(std::vector<float> disc_vec, std::vector<float> cam_vec)
-{
-  discoeffs_ = (cv::Mat_<float>(1, 5) << disc_vec[0], disc_vec[1], disc_vec[2], disc_vec[3], disc_vec[4]);
-  camera_matrix_ = (cv::Mat_<float>(3, 3) << cam_vec[0], cam_vec[1], cam_vec[2], cam_vec[3], cam_vec[4], cam_vec[5],
-                    cam_vec[6], cam_vec[7], cam_vec[8]);
 }
 
 void Detector::staticResize(cv::Mat& img)
@@ -289,15 +281,14 @@ void Detector::selectTargetColor(std::vector<Object>& proposals)
     if (rect.tl().x < 0)
       rect.x = 0;
     if (rect.br().x > 640)
-      rect.x = cv_image_->image.cols - rect.width;
+      rect.x = cv_image_->image.cols - rect.width-1;
     if (rect.tl().y < 0)
       rect.y = 0;
     if (rect.br().y > 640)
-      rect.y = cv_image_->image.rows - rect.height;
+      rect.y = cv_image_->image.rows - rect.height-1;
     roi_picture_ = cv_image_->image(rect);
     roi_picture_vec_.push_back(roi_picture_);
   }
-  std::vector<Object> filter_objects;
 
   // select the target's color
   if (target_is_red_)
@@ -319,13 +310,13 @@ void Detector::selectTargetColor(std::vector<Object>& proposals)
         }
       }
 
-      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", r_decrease_b).toImageMsg());
+//      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", r_decrease_b).toImageMsg());
       if (counter_of_pixel_ / (r_decrease_b.rows * r_decrease_b.cols) > ratio_of_pixels_)
-        filter_objects.push_back(proposals[i]);
+          filter_objects_.push_back(proposals[i]);
       roi_picture_split_vec_.clear();
 
     }
-    proposals.assign(filter_objects.begin(), filter_objects.end());
+    proposals.assign(filter_objects_.begin(), filter_objects_.end());
   }
 
   else if (target_is_blue_)
@@ -345,13 +336,15 @@ void Detector::selectTargetColor(std::vector<Object>& proposals)
             counter_of_pixel_++;
         }
       }
-      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", b_decrease_r).toImageMsg());
+//      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", b_decrease_r).toImageMsg());
       if (counter_of_pixel_ / (b_decrease_r.rows * b_decrease_r.cols) > ratio_of_pixels_)
-        filter_objects.push_back(proposals[i]);
+          filter_objects_.push_back(proposals[i]);
       roi_picture_split_vec_.clear();
     }
-    proposals.assign(filter_objects.begin(), filter_objects.end());
+    proposals.assign(filter_objects_.begin(), filter_objects_.end());
   }
+    if(!filter_objects_.empty())
+    filter_objects_.clear();
 }
 
 void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h)
@@ -417,10 +410,6 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
     roi_point_vec_.push_back(roi_data_point_l_);
     roi_point_vec_.push_back(roi_data_point_r_);
 
-    if (undistort_bool_)
-    {
-      cv::undistortPoints(roi_point_vec_, roi_point_vec_, camera_matrix_, discoeffs_, cv::noArray());
-    }
 
     roi_data_.data.push_back(roi_point_vec_[0].x);
     roi_data_.data.push_back(roi_point_vec_[0].y);
@@ -505,6 +494,7 @@ void Detector::initalizeInfer()
     { InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "16" }
   };
   InferenceEngine::ExecutableNetwork executable_network = ie.LoadNetwork(network, "CPU", config);
+//  InferenceEngine::ExecutableNetwork executable_network = ie.LoadNetwork(network, "GPU");
   InferenceEngine::InferRequest infer_request = executable_network.CreateInferRequest();
   infer_request_ = infer_request;
   const InferenceEngine::Blob::Ptr output_blob = infer_request_.GetBlob(output_name);
