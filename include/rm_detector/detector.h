@@ -49,7 +49,8 @@ public:
   void qsortDescentInplace(std::vector<Object>& proposals);
   void nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold);
   void decodeOutputs(const float* prob, const int img_w, const int img_h);
-  void selectTargetColor(std::vector<Object>& proposals);
+  void selectTargetColor(std::vector<Object>& proposals,std::vector<cv::Mat> &color_filtrated_roi_vec);
+  void contoursProcess(std::vector<Object>& proposals,std::vector<cv::Mat> &color_filtrated_roi_vec);
   void drawObjects(const cv::Mat& bgr);
   void mainFuc(cv_bridge::CvImagePtr& image_ptr);
   void initalizeInfer();
@@ -93,6 +94,8 @@ public:
   int  counter_of_pixel_;
   int pixels_thresh_;
   std::vector<Object> filter_objects_;
+  int binary_threshold_;
+  float aspect_ratio_;
 
 private:
   ros::NodeHandle nh_;

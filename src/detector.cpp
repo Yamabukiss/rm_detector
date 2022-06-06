@@ -69,6 +69,8 @@ void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
   target_is_blue_ = config.target_is_blue;
   ratio_of_pixels_ = config.ratio_of_pixels;
   pixels_thresh_ = config.pixels_thresh;
+  binary_threshold_ = config.binary_threshold;
+  aspect_ratio_=config.aspect_ratio;
   ROS_INFO("Settings have been seted");
 }
 
@@ -272,7 +274,7 @@ void Detector::nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vect
   }
 }
 
-void Detector::selectTargetColor(std::vector<Object>& proposals)
+void Detector::selectTargetColor(std::vector<Object>& proposals,std::vector<cv::Mat> &color_filtrated_roi_vec)
 {
 
     for (int i = 0; i < proposals.size(); i++)
@@ -310,9 +312,10 @@ void Detector::selectTargetColor(std::vector<Object>& proposals)
         }
       }
 
-//      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", r_decrease_b).toImageMsg());
-      if (counter_of_pixel_ / (r_decrease_b.rows * r_decrease_b.cols) > ratio_of_pixels_)
+      if (counter_of_pixel_ / (r_decrease_b.rows * r_decrease_b.cols) > ratio_of_pixels_) {
           filter_objects_.push_back(proposals[i]);
+          color_filtrated_roi_vec.push_back(roi_picture_vec_[i]);
+      }
       roi_picture_split_vec_.clear();
 
     }
@@ -336,10 +339,11 @@ void Detector::selectTargetColor(std::vector<Object>& proposals)
             counter_of_pixel_++;
         }
       }
-//      camera_pub2_.publish(cv_bridge::CvImage(std_msgs::Header(), "mono8", b_decrease_r).toImageMsg());
-      if (counter_of_pixel_ / (b_decrease_r.rows * b_decrease_r.cols) > ratio_of_pixels_)
+      if (counter_of_pixel_ / (b_decrease_r.rows * b_decrease_r.cols) > ratio_of_pixels_) {
           filter_objects_.push_back(proposals[i]);
-      roi_picture_split_vec_.clear();
+          color_filtrated_roi_vec.push_back(roi_picture_vec_[i]);
+      }
+          roi_picture_split_vec_.clear();
     }
     proposals.assign(filter_objects_.begin(), filter_objects_.end());
   }
@@ -347,12 +351,41 @@ void Detector::selectTargetColor(std::vector<Object>& proposals)
     filter_objects_.clear();
 }
 
+void Detector::contoursProcess(std::vector<Object>& proposals,std::vector<cv::Mat> &color_filtrated_roi_vec)
+{
+    for(int i=0;i<color_filtrated_roi_vec.size();i++)
+    {
+        cv::Mat pyrup_img;
+        cv::Mat gray_img;
+        cv::Mat threshold_img;
+        cv::Rect rect;
+        std::vector<std::vector<cv::Point>> contours;
+        std::vector<cv::Vec4i> hierarchy;
+        cv::pyrUp(color_filtrated_roi_vec[i],pyrup_img); //x2
+        cv::cvtColor(pyrup_img,gray_img,CV_BGR2GRAY);
+        cv::adaptiveThreshold(gray_img,threshold_img,binary_threshold_,CV_ADAPTIVE_THRESH_GAUSSIAN_C,CV_THRESH_BINARY,3,0);
+        cv::findContours(threshold_img,contours,hierarchy,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE);
+        rect=cv::boundingRect(contours[0]);
+        if(rect.width/rect.height>aspect_ratio_)   filter_objects_.push_back(proposals[i]);
+    }
+    if(!filter_objects_.empty()) {
+        proposals.assign(filter_objects_.begin(), filter_objects_.end());
+        filter_objects_.clear();
+    }
+    else
+    {
+        proposals.clear();
+    }
+
+}
+
 void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h)
 {
   std::vector<Object> proposals;
   generateYoloxProposals(grid_strides_, prob, bbox_conf_thresh_, proposals);  // initial filtrate
-
-  selectTargetColor(proposals);
+  std::vector<cv::Mat> color_filtrated_roi_vec;
+  selectTargetColor(proposals, color_filtrated_roi_vec);
+  contoursProcess(proposals,color_filtrated_roi_vec);
 
   if (proposals.empty()) {
       return;
