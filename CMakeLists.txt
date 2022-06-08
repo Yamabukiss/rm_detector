@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.06)
 
 project(rm_detector)
 
@@ -47,8 +47,6 @@ include_directories(
 )
 
 
-
-
 # include and link dirs of cuda and tensorrt, you need adapt them if yours are different
 # cuda
 include_directories(/usr/local/cuda-11.6/include)
@@ -56,21 +54,32 @@ link_directories(/usr/local/cuda-11.6/lib64)
 # cudnn
 include_directories(/opt/TensorRT-8.4.0.6/include)
 link_directories(/opt/TensorRT-8.4.0.6/lib)
-# tensorrt
-include_directories(/home/Downloads/TensorRT-8.4.0.6/include)
-link_directories(/home/Downloads/TensorRT-8.4.0.6/lib)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Ofast -Wfatal-errors -D_MWAITXINTRIN_H_INCLUDED")
 
-add_library(${PROJECT_NAME} src/detector.cpp)
-add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
+add_executable(${PROJECT_NAME}_node src/detector_node.cpp src/detector.cpp)
+#add_executable(${PROJECT_NAME}_node src/test.cpp)
+add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_gencfg)
 
 
-target_link_libraries(${PROJECT_NAME}  nvinfer)
-target_link_libraries(${PROJECT_NAME}  cudart)
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME}_node nvinfer)
+target_link_libraries(${PROJECT_NAME}_node cudart)
+target_link_libraries(${PROJECT_NAME}_node
         ${catkin_LIBRARIES}
         ${OpenCV_LIBS}
         )
 add_definitions(-O2 -pthread)
+
+#add_library(${PROJECT_NAME} src/detector.cpp)
+#add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
+
+
+#target_link_libraries(${PROJECT_NAME} nvinfer)
+#target_link_libraries(${PROJECT_NAME} cudart)
+#target_link_libraries(${PROJECT_NAME}
+#        ${catkin_LIBRARIES}
+#        ${OpenCV_LIBS}
+#        )
+#add_definitions(-O2 -pthread)

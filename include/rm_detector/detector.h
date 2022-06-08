@@ -2,6 +2,7 @@
 // Created by yamabuki on 2022/4/18.
 //
 #pragma once
+
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <ros/ros.h>
@@ -43,25 +44,49 @@ class Detector : public nodelet::Nodelet
 {
 public:
   Detector();
+
   virtual ~Detector();
+
+  ros::NodeHandle nh_;
+
   void onInit() override;
+
   void receiveFromCam(const sensor_msgs::ImageConstPtr& image);
+
   void staticResize(cv::Mat& img);
-  float *blobFromImage(cv::Mat &img);
+
+  float* blobFromImage(cv::Mat& img);
+
   void generateGridsAndStride(const int target_w, const int target_h);
+
   void generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr, float prob_threshold,
                               std::vector<Object>& proposals);
+
   inline float intersectionArea(const Object& a, const Object& b);
+
   void qsortDescentInplace(std::vector<Object>& faceobjects, int left, int right);
+
   void qsortDescentInplace(std::vector<Object>& proposals);
+
   void nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold);
+
   void decodeOutputs(const float* prob, const int img_w, const int img_h);
-  void selectTargetColor(std::vector<Object>& proposals,std::vector<cv::Mat> &color_filtrated_roi_vec);
-  void contoursProcess(std::vector<Object>& proposals,std::vector<cv::Mat> &color_filtrated_roi_vec);
+
+  void selectTargetColor(std::vector<Object>& proposals, std::vector<cv::Mat>& color_filtrated_roi_vec);
+
+  void contoursProcess(std::vector<Object>& proposals, std::vector<cv::Mat>& color_filtrated_roi_vec);
+
   void drawObjects(const cv::Mat& bgr);
+
   void mainFuc(cv_bridge::CvImagePtr& image_ptr);
+
   void initalizeInfer();
+
   void dynamicCallback(rm_detector::dynamicConfig& config);
+
+  void doInference(nvinfer1::IExecutionContext& context, float* input, float* output, const int output_size,
+                   cv::Size input_shape);
+
   cv_bridge::CvImagePtr cv_image_;
   std::vector<GridAndStride> grid_strides_;
   float nms_thresh_;
@@ -95,20 +120,19 @@ public:
   std::vector<cv::Mat> roi_picture_vec_;
   std::vector<cv::Mat> roi_picture_split_vec_;
   float ratio_of_pixels_;
-  int  counter_of_pixel_;
+  int counter_of_pixel_;
   int pixels_thresh_;
   std::vector<Object> filter_objects_;
   int binary_threshold_;
   float aspect_ratio_;
-  nvinfer1::IRuntime *runtime_;
-  nvinfer1::ICudaEngine *engine_;
-  nvinfer1::IExecutionContext *context_;
+  char* trt_model_stream_{};
+  nvinfer1::IRuntime* runtime_{};
+  nvinfer1::ICudaEngine* engine_{};
+  nvinfer1::IExecutionContext* context_{};
+  float* prob_{};
   int output_size_;
-  static float *prob_;
-
 
 private:
-  ros::NodeHandle nh_;
   ros::Publisher camera_pub_;
   ros::Publisher camera_pub2_;
   ros::Subscriber camera_sub_;

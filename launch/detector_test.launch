@@ -1,0 +1,12 @@
+<launch>
+     <group ns="armor_detect_nodelet">
+        <param name="g_model_path"  type="string" value="/home/dynamicx/catkin_ws/src/rm_detector/engine1.engine"/>
+        <param name="nodelet_name"  type="string" value="detector_nodelet"/>
+        <param name="camera_pub_name"  type="string" value="armor_detector_image_publisher"/>
+        <param name="roi_data1_name"  type="string" value="roi_data1"/>
+        <param name="roi_data2_name"  type="string" value="roi_data2"/>
+        <param name="roi_data3_name"  type="string" value="roi_data3"/>
+        <param name="roi_data4_name"  type="string" value="roi_data4"/>
+        <param name="roi_data5_name"  type="string" value="roi_data5"/>
+     </group>
+</launch>
