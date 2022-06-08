@@ -4,22 +4,35 @@
 //
 
 #include <rm_detector/detector.h>
-#define INPUT_W 640
-#define INPUT_H 640
-#define NUM_CLASSES 1
+#define CHECK(status) \
+    do\
+    {\
+        auto ret = (status);\
+        if (ret != 0)\
+        {\
+            std::cerr << "Cuda failure: " << ret << std::endl;\
+            abort();\
+        }\
+    } while (0)
+
+#define DEVICE 0
+static const int INPUT_W = 416;
+static const int INPUT_H = 416;
+static const int NUM_CLASSES = 1;
+const char* INPUT_BLOB_NAME = "images";
+const char* OUTPUT_BLOB_NAME = "output";
+static Logger gLogger;
+
 namespace rm_detector
 {
 Detector::Detector()
 {
-  mblob_ = nullptr;
 }
 
 void Detector::onInit()
 {
   ros::NodeHandle nh = getMTPrivateNodeHandle();
   nh.getParam("g_model_path", model_path_);
-//  nh.getParam("distortion_coefficients/data", discoeffs_vec_);
-//  nh.getParam("camera_matrix/data", camera_matrix_vec_);
   nh.getParam("nodelet_name", nodelet_name_);
   nh.getParam("camera_pub_name", camera_pub_name_);
   nh.getParam("roi_data1_name", roi_data1_name_);
@@ -57,7 +70,7 @@ void Detector::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
   cv_image_ = boost::make_shared<cv_bridge::CvImage>(*cv_bridge::toCvShare(image, image->encoding));
   mainFuc(cv_image_);
   objects_.clear();
-  roi_picture_vec_.clear();
+//  roi_picture_vec_.clear();
 }
 
 void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
@@ -90,33 +103,21 @@ void Detector::staticResize(cv::Mat& img)
   //  img.copyTo(out(cv::Rect(0, 0, img.cols, img.rows)));
 }
 
-void Detector::blobFromImage(cv::Mat& img)
-{
-  int channels = 3;
-  int img_h = img.rows;
-  int img_w = img.cols;
-  if (!mblob_)
-  {
-    THROW_IE_EXCEPTION << "We expect blob to be inherited from MemoryBlob in matU8ToBlob, "
-                       << "but by fact we were not able to cast inputBlob to MemoryBlob";
-  }
-  // locked memory holder should be alive all time while access to its buffer happens
-  auto mblob_holder = mblob_->wmap();
-
-  float* blob_data = mblob_holder.as<float*>();
-
-  for (size_t c = 0; c < channels; c++)
-  {
-    for (size_t h = 0; h < img_h; h++)
-    {
-      for (size_t w = 0; w < img_w; w++)
-      {
-        blob_data[c * img_w * img_h + h * img_w + w] = (float)img.at<cv::Vec3b>(h, w)[c];
-      }
+    float *Detector::blobFromImage(cv::Mat &img) {
+        float *blob = new float[img.total() * 3];
+        int channels = 3;
+        int img_h = img.rows;
+        int img_w = img.cols;
+        for (size_t c = 0; c < channels; c++) {
+            for (size_t h = 0; h < img_h; h++) {
+                for (size_t w = 0; w < img_w; w++) {
+                    blob[c * img_w * img_h + h * img_w + w] =
+                            (float) img.at<cv::Vec3b>(h, w)[c];
+                }
+            }
+        }
+        return blob;
     }
-  }
-}
-
 // if the 3 parameters is fixed the strides can be fixed too
 void Detector::generateGridsAndStride(const int target_w, const int target_h)
 {
@@ -384,8 +385,8 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
   std::vector<Object> proposals;
   generateYoloxProposals(grid_strides_, prob, bbox_conf_thresh_, proposals);  // initial filtrate
   std::vector<cv::Mat> color_filtrated_roi_vec;
-  selectTargetColor(proposals, color_filtrated_roi_vec);
-  contoursProcess(proposals,color_filtrated_roi_vec);
+//  selectTargetColor(proposals, color_filtrated_roi_vec);
+//  contoursProcess(proposals,color_filtrated_roi_vec);
 
   if (proposals.empty()) {
       return;
@@ -498,47 +499,97 @@ void Detector::drawObjects(const cv::Mat& bgr)
   camera_pub_.publish(cv_bridge::CvImage(std_msgs::Header(), "bgr8", bgr).toImageMsg());
 }
 
+    void doInference(nvinfer1::IExecutionContext &context, float *input, float *output, const int output_size, cv::Size input_shape) {
+        const nvinfer1::ICudaEngine &engine = context.getEngine();
+
+        // Pointers to input and output device buffers to pass to engine.
+        // Engine requires exactly IEngine::getNbBindings() number of buffers.
+        assert(engine.getNbBindings() == 2);
+        void *buffers[2];
+
+        // In order to bind the buffers, we need to know the names of the input and output tensors.
+        // Note that indices are guaranteed to be less than IEngine::getNbBindings()
+        const int inputIndex = engine.getBindingIndex(INPUT_BLOB_NAME);
+
+        assert(engine.getBindingDataType(inputIndex) == nvinfer1::DataType::kFLOAT);
+        const int outputIndex = engine.getBindingIndex(OUTPUT_BLOB_NAME);
+        assert(engine.getBindingDataType(outputIndex) == nvinfer1::DataType::kFLOAT);
+        int mBatchSize = engine.getMaxBatchSize();
+//        std::cout << "max_batch:" << mBatchSize << std::endl;
+        // Create GPU buffers on device
+        CHECK(cudaMalloc(&buffers[inputIndex], 3 * input_shape.height * input_shape.width * sizeof(float)));
+        CHECK(cudaMalloc(&buffers[outputIndex], output_size * sizeof(float)));
+
+        // Create stream
+        cudaStream_t stream;
+        CHECK(cudaStreamCreate(&stream));
+
+        // DMA input batch data to device, infer on the batch asynchronously, and DMA output back to host
+        CHECK(cudaMemcpyAsync(buffers[inputIndex], input, 3 * input_shape.height * input_shape.width * sizeof(float),
+                              cudaMemcpyHostToDevice, stream));
+        context.enqueue(1, buffers, stream, nullptr);
+        CHECK(cudaMemcpyAsync(output, buffers[outputIndex], output_size * sizeof(float), cudaMemcpyDeviceToHost,
+                              stream));
+        cudaStreamSynchronize(stream);
+
+        // Release stream and buffers
+        cudaStreamDestroy(stream);
+        CHECK(cudaFree(buffers[inputIndex]));
+        CHECK(cudaFree(buffers[outputIndex]));
+    }
+
+
 void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr)
 {
   scale_ = std::min(INPUT_W / (image_ptr->image.cols * 1.0), INPUT_H / (image_ptr->image.rows * 1.0));
-  staticResize(image_ptr->image);
-  blobFromImage(image_ptr->image);
-
-  infer_request_.StartAsync();
-  infer_request_.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-  decodeOutputs(net_pred_, image_ptr->image.cols, image_ptr->image.rows);
+  staticResize(cv_image_->image);
+  float *blob;
+  blob=blobFromImage(cv_image_->image);
+  doInference(*context_, blob, prob_, output_size_, cv_image_->image.size());
+  delete blob;
+  decodeOutputs(prob_, cv_image_->image.cols, cv_image_->image.rows);
   if (turn_on_image_)
-    drawObjects(image_ptr->image);
+    drawObjects(cv_image_->image);
+  context_->destroy();
+  engine_->destroy();
+  runtime_->destroy();
 }
 
 void Detector::initalizeInfer()
 {
-  InferenceEngine::Core ie;
-  InferenceEngine::CNNNetwork network = ie.ReadNetwork(model_path_);
-  std::string input_name = network.getInputsInfo().begin()->first;
-  std::string output_name = network.getOutputsInfo().begin()->first;
-  InferenceEngine::DataPtr output_info = network.getOutputsInfo().begin()->second;
-  output_info->setPrecision(InferenceEngine::Precision::FP32);
-  std::map<std::string, std::string> config = {
-    { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO },
-    { InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, InferenceEngine::PluginConfigParams::NUMA },
-    { InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-      InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA },
-    { InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "16" }
-  };
-  InferenceEngine::ExecutableNetwork executable_network = ie.LoadNetwork(network, "CPU", config);
-//  InferenceEngine::ExecutableNetwork executable_network = ie.LoadNetwork(network, "GPU");
-  InferenceEngine::InferRequest infer_request = executable_network.CreateInferRequest();
-  infer_request_ = infer_request;
-  const InferenceEngine::Blob::Ptr output_blob = infer_request_.GetBlob(output_name);
-  InferenceEngine::MemoryBlob::CPtr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(output_blob);
-  auto moutput_holder = moutput->rmap();
-  const float* net_pred =
-      moutput_holder.as<const InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
-  net_pred_ = net_pred;
-  InferenceEngine::Blob::Ptr img_blob = infer_request_.GetBlob(input_name);
-  InferenceEngine::MemoryBlob::Ptr memory_blob = InferenceEngine::as<InferenceEngine::MemoryBlob>(img_blob);
-  mblob_ = memory_blob;
+    cudaSetDevice(DEVICE);
+    // create a model using the API directly and serialize it to a stream
+    char *trtModelStream{nullptr};
+    size_t size{0};
+
+//    if (argc == 4 && std::string(argv[2]) == "-i") {
+//        const std::string engine_file_path {argv[1]};
+    std::string engine_file_path = model_path_;
+    std::ifstream file(engine_file_path, std::ios::binary);
+    if (file.good()) {
+        file.seekg(0, file.end);
+        size = file.tellg();
+        file.seekg(0, file.beg);
+        trtModelStream = new char[size];
+        assert(trtModelStream);
+        file.read(trtModelStream, size);
+        file.close();
+    }
+
+    runtime_= nvinfer1::createInferRuntime(gLogger);
+    assert(runtime_ != nullptr);
+    engine_ = runtime_->deserializeCudaEngine(trtModelStream, size);
+    assert(engine_ != nullptr);
+    context_= engine_->createExecutionContext();
+    assert(context_ != nullptr);
+    delete[] trtModelStream;
+    auto out_dims = engine_->getBindingDimensions(1);
+    output_size_ = 1;
+    for (int j = 0; j < out_dims.nbDims; j++) {
+        output_size_ *= out_dims.d[j];
+    }
+
+    prob_ = new float[output_size_];
 }
 Detector::~Detector()
 {

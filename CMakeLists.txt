@@ -1,6 +1,14 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 2.6)
+
 project(rm_detector)
 
+add_definitions(-std=c++11)
+
+option(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_BUILD_TYPE Debug)
+
+find_package(CUDA REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
         roscpp
         rospy
@@ -10,24 +18,10 @@ find_package(catkin REQUIRED COMPONENTS
         nodelet
         pluginlib
         )
-find_package(OpenCV REQUIRED)
-find_package(Eigen3 REQUIRED)
-
-find_package(InferenceEngine REQUIRED)
-find_package(ngraph REQUIRED)
 
 generate_dynamic_reconfigure_options(
         cfg/dynamic.cfg
 )
-
-include_directories(
-        include
-        ${catkin_INCLUDE_DIRS}
-        ${OpenCV_INCLUDE_DIRS}
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_BINARY_DIR}
-)
-
 
 catkin_package(
         INCLUDE_DIRS
@@ -41,29 +35,42 @@ catkin_package(
         LIBRARIES ${PROJECT_NAME}
 )
 
+
+find_package(OpenCV REQUIRED)
+
 include_directories(
         include
         ${catkin_INCLUDE_DIRS}
+        ${OpenCV_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_BINARY_DIR}
 )
-## Declare a C++ library
+
+
+
+
+# include and link dirs of cuda and tensorrt, you need adapt them if yours are different
+# cuda
+include_directories(/usr/local/cuda-11.6/include)
+link_directories(/usr/local/cuda-11.6/lib64)
+# cudnn
+include_directories(/opt/TensorRT-8.4.0.6/include)
+link_directories(/opt/TensorRT-8.4.0.6/lib)
+# tensorrt
+include_directories(/home/Downloads/TensorRT-8.4.0.6/include)
+link_directories(/home/Downloads/TensorRT-8.4.0.6/lib)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Ofast -Wfatal-errors -D_MWAITXINTRIN_H_INCLUDED")
+
 add_library(${PROJECT_NAME} src/detector.cpp)
-
-target_link_libraries(${PROJECT_NAME}
-        ${catkin_LIBRARIES}
-        ${InferenceEngine_LIBRARIES}
-        ${NGRAPH_LIBRARIES}
-        ${OpenCV_LIBS}
-        )
-
-
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
 
-target_link_libraries(
-        ${PROJECT_NAME}
-        ${catkin_LIBRARIES}
-        ${InferenceEngine_LIBRARIES}
-        ${NGRAPH_LIBRARIES}
-        ${OpenCV_LIBS}
-)
 
+target_link_libraries(${PROJECT_NAME}  nvinfer)
+target_link_libraries(${PROJECT_NAME}  cudart)
+target_link_libraries(${PROJECT_NAME}
+        ${catkin_LIBRARIES}
+        ${OpenCV_LIBS}
+        )
+add_definitions(-O2 -pthread)

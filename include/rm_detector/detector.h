@@ -8,13 +8,20 @@
 #include <cv_bridge/cv_bridge.h>
 #include <string>
 #include <vector>
-#include <inference_engine.hpp>
 #include "std_msgs/Float32MultiArray.h"
 #include "dynamic_reconfigure/server.h"
 #include "rm_detector/dynamicConfig.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "nodelet/nodelet.h"
 #include <pluginlib/class_list_macros.h>
+#include <fstream>
+#include <sstream>
+#include <numeric>
+#include <chrono>
+#include <dirent.h>
+#include "NvInfer.h"
+#include "cuda_runtime_api.h"
+#include "logging.h"
 
 struct Object
 {
@@ -40,7 +47,7 @@ public:
   void onInit() override;
   void receiveFromCam(const sensor_msgs::ImageConstPtr& image);
   void staticResize(cv::Mat& img);
-  void blobFromImage(cv::Mat& img);
+  float *blobFromImage(cv::Mat &img);
   void generateGridsAndStride(const int target_w, const int target_h);
   void generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr, float prob_threshold,
                               std::vector<Object>& proposals);
@@ -56,9 +63,6 @@ public:
   void initalizeInfer();
   void dynamicCallback(rm_detector::dynamicConfig& config);
   cv_bridge::CvImagePtr cv_image_;
-  InferenceEngine::InferRequest infer_request_;
-  InferenceEngine::MemoryBlob::Ptr mblob_;
-  const float* net_pred_;
   std::vector<GridAndStride> grid_strides_;
   float nms_thresh_;
   float bbox_conf_thresh_;
@@ -96,6 +100,12 @@ public:
   std::vector<Object> filter_objects_;
   int binary_threshold_;
   float aspect_ratio_;
+  nvinfer1::IRuntime *runtime_;
+  nvinfer1::ICudaEngine *engine_;
+  nvinfer1::IExecutionContext *context_;
+  int output_size_;
+  static float *prob_;
+
 
 private:
   ros::NodeHandle nh_;
