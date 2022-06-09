@@ -68,8 +68,6 @@ public:
 
   void nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold);
 
-  void decodeOutputs(const float* prob, const int img_w, const int img_h, const int& car_num);
-
   void drawObjects(const cv::Mat& bgr);
 
   void mainFuc(cv_bridge::CvImagePtr& image_ptr);
