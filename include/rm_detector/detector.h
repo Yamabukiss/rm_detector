@@ -72,9 +72,6 @@ public:
 
   void decodeOutputs(const float* prob, const int img_w, const int img_h);
 
-  void selectTargetColor(std::vector<Object>& proposals, std::vector<cv::Mat>& color_filtrated_roi_vec);
-
-  void contoursProcess(std::vector<Object>& proposals, std::vector<cv::Mat>& color_filtrated_roi_vec);
 
   void drawObjects(const cv::Mat& bgr);
 

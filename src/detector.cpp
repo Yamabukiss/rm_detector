@@ -31,7 +31,7 @@ Detector::Detector()
 
 void Detector::onInit()
 {
-  //  nh_ = getMTPrivateNodeHandle();
+  nh_ = getMTPrivateNodeHandle();
   nh_.getParam("g_model_path", model_path_);
   nh_.getParam("nodelet_name", nodelet_name_);
   nh_.getParam("camera_pub_name", camera_pub_name_);
@@ -40,14 +40,12 @@ void Detector::onInit()
   nh_.getParam("roi_data3_name", roi_data3_name_);
   nh_.getParam("roi_data4_name", roi_data4_name_);
   nh_.getParam("roi_data5_name", roi_data5_name_);
-  //  setDataToMatrix(discoeffs_vec_, camera_matrix_vec_);
   initalizeInfer();
   callback_ = boost::bind(&Detector::dynamicCallback, this, _1);
   server_.setCallback(callback_);
 
   camera_sub_ = nh_.subscribe("/hk_camera/image_raw", 1, &Detector::receiveFromCam, this);
   camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1);
-  camera_pub2_ = nh_.advertise<sensor_msgs::Image>("sub_publisher", 1);
 
   roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data1_name_, 1);
   roi_data_pub2_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data2_name_, 1);
@@ -69,7 +67,6 @@ void Detector::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
   cv_image_ = boost::make_shared<cv_bridge::CvImage>(*cv_bridge::toCvShare(image, image->encoding));
   mainFuc(cv_image_);
   objects_.clear();
-  //  roi_picture_vec_.clear();
 }
 
 void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
@@ -79,10 +76,6 @@ void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
   turn_on_image_ = config.g_turn_on_image;
   target_is_red_ = config.target_is_red;
   target_is_blue_ = config.target_is_blue;
-  ratio_of_pixels_ = config.ratio_of_pixels;
-  pixels_thresh_ = config.pixels_thresh;
-  binary_threshold_ = config.binary_threshold;
-  aspect_ratio_ = config.aspect_ratio;
   ROS_INFO("Settings have been seted");
 }
 
@@ -174,10 +167,6 @@ void Detector::generateYoloxProposals(std::vector<GridAndStride> grid_strides, c
         obj.rect.y = y0;
         obj.rect.width = w;
         obj.rect.height = h;
-        //                    obj.lu=cv::Point2f (x0-(w/2.0),y0+(h/2.0));
-        //                    obj.ld=cv::Point2f (x0-(w/2.0),y0-(h/2.0));
-        //                    obj.ru=cv::Point2f (x0+(w/2.0),y0+(h/2.0));
-        //                    obj.rd=cv::Point2f (x0+(w/2.0),y0-(h/2.0));
         obj.label = class_idx;
         obj.prob = box_prob;
 
@@ -274,120 +263,10 @@ void Detector::nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vect
   }
 }
 
-void Detector::selectTargetColor(std::vector<Object>& proposals, std::vector<cv::Mat>& color_filtrated_roi_vec)
-{
-  for (int i = 0; i < proposals.size(); i++)
-  {
-    cv::Rect rect(proposals[i].rect.tl().x, proposals[i].rect.tl().y, proposals[i].rect.width, proposals[i].rect.height);
-    if (rect.tl().x < 0)
-      rect.x = 0;
-    if (rect.br().x > 640)
-      rect.x = cv_image_->image.cols - rect.width - 1;
-    if (rect.tl().y < 0)
-      rect.y = 0;
-    if (rect.br().y > 640)
-      rect.y = cv_image_->image.rows - rect.height - 1;
-    roi_picture_ = cv_image_->image(rect);
-    roi_picture_vec_.push_back(roi_picture_);
-  }
-
-  // select the target's color
-  if (target_is_red_)
-  {
-    for (int i = 0; i < roi_picture_vec_.size(); i++)
-    {
-      cv::split(roi_picture_vec_[i], roi_picture_split_vec_);
-      cv::Mat r_decrease_b;  // r-b
-      cv::subtract(roi_picture_split_vec_[2], roi_picture_split_vec_[0], r_decrease_b);
-
-      counter_of_pixel_ = 0;
-
-      for (int j = 0; j < r_decrease_b.cols; j++)
-      {
-        for (int k = 0; k < r_decrease_b.rows; k++)
-        {
-          if (r_decrease_b.at<uchar>(j, k) > pixels_thresh_)
-            counter_of_pixel_++;
-        }
-      }
-
-      if (counter_of_pixel_ / (r_decrease_b.rows * r_decrease_b.cols) > ratio_of_pixels_)
-      {
-        filter_objects_.push_back(proposals[i]);
-        color_filtrated_roi_vec.push_back(roi_picture_vec_[i]);
-      }
-      roi_picture_split_vec_.clear();
-    }
-    proposals.assign(filter_objects_.begin(), filter_objects_.end());
-  }
-
-  else if (target_is_blue_)
-  {
-    for (int i = 0; i < roi_picture_vec_.size(); i++)
-    {
-      cv::split(roi_picture_vec_[i], roi_picture_split_vec_);
-      cv::Mat b_decrease_r;
-      cv::subtract(roi_picture_split_vec_[0], roi_picture_split_vec_[2], b_decrease_r);  // b-r
-
-      counter_of_pixel_ = 0;
-      for (int j = 0; j < b_decrease_r.cols; j++)
-      {
-        for (int k = 0; k < b_decrease_r.rows; k++)
-        {
-          if (b_decrease_r.at<uchar>(j, k) > pixels_thresh_)
-            counter_of_pixel_++;
-        }
-      }
-      if (counter_of_pixel_ / (b_decrease_r.rows * b_decrease_r.cols) > ratio_of_pixels_)
-      {
-        filter_objects_.push_back(proposals[i]);
-        color_filtrated_roi_vec.push_back(roi_picture_vec_[i]);
-      }
-      roi_picture_split_vec_.clear();
-    }
-    proposals.assign(filter_objects_.begin(), filter_objects_.end());
-  }
-  if (!filter_objects_.empty())
-    filter_objects_.clear();
-}
-
-void Detector::contoursProcess(std::vector<Object>& proposals, std::vector<cv::Mat>& color_filtrated_roi_vec)
-{
-  for (int i = 0; i < color_filtrated_roi_vec.size(); i++)
-  {
-    cv::Mat pyrup_img;
-    cv::Mat gray_img;
-    cv::Mat threshold_img;
-    cv::Rect rect;
-    std::vector<std::vector<cv::Point>> contours;
-    std::vector<cv::Vec4i> hierarchy;
-    cv::pyrUp(color_filtrated_roi_vec[i], pyrup_img);  // x2
-    cv::cvtColor(pyrup_img, gray_img, CV_BGR2GRAY);
-    cv::adaptiveThreshold(gray_img, threshold_img, binary_threshold_, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY,
-                          3, 0);
-    cv::findContours(threshold_img, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-    rect = cv::boundingRect(contours[0]);
-    if (rect.width / rect.height > aspect_ratio_)
-      filter_objects_.push_back(proposals[i]);
-  }
-  if (!filter_objects_.empty())
-  {
-    proposals.assign(filter_objects_.begin(), filter_objects_.end());
-    filter_objects_.clear();
-  }
-  else
-  {
-    proposals.clear();
-  }
-}
-
 void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h)
 {
   std::vector<Object> proposals;
   generateYoloxProposals(grid_strides_, prob, bbox_conf_thresh_, proposals);  // initial filtrate
-  //  std::vector<cv::Mat> color_filtrated_roi_vec;
-  //  selectTargetColor(proposals, color_filtrated_roi_vec);
-  //  contoursProcess(proposals,color_filtrated_roi_vec);
 
   if (proposals.empty())
   {
@@ -406,12 +285,6 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
   for (int i = 0; i < count; i++)
   {
     objects_[i] = proposals[picked[i]];
-
-    // adjust offset to original unpadded
-    //    float x0 = (objects_[i].rect.x) / scale;
-    //    float y0 = (objects_[i].rect.y) / scale;
-    //    float x1 = (objects_[i].rect.x + objects_[i].rect.width) / scale;
-    //    float y1 = (objects_[i].rect.y + objects_[i].rect.height) / scale;
 
     float x0 = (objects_[i].rect.x);
     float y0 = (objects_[i].rect.y);
@@ -454,46 +327,9 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
 
 void Detector::drawObjects(const cv::Mat& bgr)
 {
-  //        static const char* class_names[] = {
-  //                "armor"
-  //        };
-
   for (size_t i = 0; i < objects_.size(); i++)
   {
-    //        fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
-    //                obj.rect.tl().x, obj.rect.tl().y, obj.rect.width, obj.rect.height);
-
-    //        float c_mean = cv::mean(color)[0];
-    //        cv::Scalar txt_color;
-    //        if (c_mean > 0.5){
-    //            txt_color = cv::Scalar(0, 0, 0);
-    //        }else{
-    //            txt_color = cv::Scalar(255, 255, 255);
-    //        }
-
     cv::rectangle(bgr, objects_[i].rect, cv::Scalar(255, 0, 0), 2);
-
-    //        char text[256];
-    //        sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
-    //
-    //        int baseLine = 0;
-    //        cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
-    //
-    //        cv::Scalar txt_bk_color = color * 0.7 * 255;
-    //
-    //        int x = obj.rect.x;
-    //        int y = obj.rect.y + 1;
-    //        //int y = obj.rect.y - label_size.height - baseLine;
-    //        if (y > image.rows)
-    //            y = image.rows;
-    //        //if (x + label_size.width > image.cols)
-    //        //x = image.cols - label_size.width;
-    //
-    //        cv::rectangle(image, cv::Rect(cv::Poiprob_nt(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-    //                      txt_bk_color, -1);
-    //
-    //        cv::putText(image, text, cv::Point(x, y + label_size.height),
-    //                    cv::FONT_HERSHEY_SIMPLEX, 0.4, txt_color, 1);
   }
   camera_pub_.publish(cv_bridge::CvImage(std_msgs::Header(), "bgr8", bgr).toImageMsg());
 }
@@ -546,7 +382,7 @@ void Detector::initalizeInfer()
   size_t size{ 0 };
 
   //  if (argc == 4 && std::string(argv[2]) == "-i") {
-  const std::string engine_file_path = "/home/dynamicx/catkin_ws/src/rm_detector/yolox_s.engine";
+  const std::string engine_file_path = model_path_;
   std::ifstream file(engine_file_path, std::ios::binary);
   if (file.good())
   {
@@ -594,24 +430,20 @@ void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr)
   blob = blobFromImage(cv_image_->image);
 
   // run inference
-  auto start = std::chrono::system_clock::now();
   doInference(*context_, blob, prob_, output_size_, cv_image_->image.size());
-  auto end = std::chrono::system_clock::now();
-  std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
 
   std::vector<Object> objects;
   decodeOutputs(prob_, img_w, img_h);
   drawObjects(cv_image_->image);
   // delete the pointer to the float
   delete blob;
-  // destroy the engine
-  //  context_->destroy();
-  //  engine_->destroy();
-  //  runtime_->destroy();
 }
 
 Detector::~Detector()
 {
+  context_->destroy();
+  engine_->destroy();
+  runtime_->destroy();
 }
 }  // namespace rm_detector
 PLUGINLIB_EXPORT_CLASS(rm_detector::Detector, nodelet::Nodelet)
