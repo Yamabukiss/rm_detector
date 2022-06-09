@@ -304,7 +304,7 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
   }  // make the real object
      //  for (size_t i = 0; i < objects_.size(); i++)
 
-  for (size_t i = 0; i < 5; i++)
+  for (size_t i = 0; i < objects_.size(); i++)
   {
     roi_point_vec_.clear();
     roi_data_.data.clear();
@@ -423,18 +423,20 @@ void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr)
   scale_ = std::min(INPUT_W / (cv_image_->image.cols * 1.0), INPUT_H / (cv_image_->image.rows * 1.0));
   int img_w = cv_image_->image.cols;
   int img_h = cv_image_->image.rows;
-  staticResize(cv_image_->image);
+  cv::Mat flip_img;
+  cv::flip(cv_image_->image, flip_img, -1);
+  staticResize(flip_img);
   std::cout << "blob image" << std::endl;
 
   float* blob;
-  blob = blobFromImage(cv_image_->image);
+  blob = blobFromImage(flip_img);
 
   // run inference
-  doInference(*context_, blob, prob_, output_size_, cv_image_->image.size());
+  doInference(*context_, blob, prob_, output_size_, flip_img.size());
 
   std::vector<Object> objects;
   decodeOutputs(prob_, img_w, img_h);
-  drawObjects(cv_image_->image);
+  drawObjects(flip_img);
   // delete the pointer to the float
   delete blob;
 }
