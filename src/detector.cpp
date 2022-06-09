@@ -441,9 +441,6 @@ void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr)
 
 Detector::~Detector()
 {
-  context_->destroy();
-  engine_->destroy();
-  runtime_->destroy();
 }
 }  // namespace rm_detector
 PLUGINLIB_EXPORT_CLASS(rm_detector::Detector, nodelet::Nodelet)
