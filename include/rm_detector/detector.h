@@ -47,20 +47,18 @@ public:
 
   virtual ~Detector();
 
-  ros::NodeHandle nh_;
-
   void onInit() override;
 
   void receiveFromCam(const sensor_msgs::ImageConstPtr& image);
 
-  void staticResize(cv::Mat& img);
+  void staticResize(cv::Mat& img, const float& scale);
 
   float* blobFromImage(cv::Mat& img);
 
   void generateGridsAndStride(const int target_w, const int target_h);
 
   void generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr, float prob_threshold,
-                              std::vector<Object>& proposals);
+                              std::vector<Object>& proposals, const int& NUM_CLASSES);
 
   inline float intersectionArea(const Object& a, const Object& b);
 
@@ -76,7 +74,8 @@ public:
 
   void mainFuc(cv_bridge::CvImagePtr& image_ptr);
 
-  void initalizeInfer();
+  void initalizeInferOfCar();
+  void initalizeInferOfArmor();
 
   void dynamicCallback(rm_detector::dynamicConfig& config);
 
@@ -86,12 +85,17 @@ public:
   void publishDataForRed(const Object& object);
   void publishDataForBlue(const Object& object);
   void publishUndetectableNum(std::vector<int> detectable_vec, std::vector<int> color_num_vec,
-                              std::vector<Object> objects);
+                              std::vector<Object> objects, int img_w, int img_h);
+  void getRoiImg(const std::vector<Object>& object, std::vector<cv::Mat>& roi_vec);
+  void detectArmor(std::vector<cv::Mat>& roi_vec);
 
+  ros::NodeHandle nh_;
   cv_bridge::CvImagePtr cv_image_{};
   std::vector<GridAndStride> grid_strides_;
   float nms_thresh_;
+  float nms_thresh2_;
   float bbox_conf_thresh_;
+  float bbox_conf_thresh2_;
   std_msgs::Float32MultiArray roi_data_;
   std::vector<cv::Point2f> roi_point_vec_;
   cv::Point2f roi_data_point_r_;
@@ -100,14 +104,18 @@ public:
   cv::Mat_<float> camera_matrix_;
   std::vector<float> discoeffs_vec_;
   std::vector<float> camera_matrix_vec_;
-  std::vector<Object> objects_;
+  std::vector<Object> armor_objects_;
+  std::vector<Object> car_objects_;
   std::vector<Object> prev_objects_;
   std::vector<int> blue_lable_vec;
   std::vector<int> red_lable_vec;
+  std::string car_model_path_;
+  std::string armor_model_path_;
   std::string model_path_;
   int origin_img_w_;
   int origin_img_h_;
   float scale_;
+  float scale2_;
   bool turn_on_image_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig> server_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig>::CallbackType callback_;
@@ -125,11 +133,17 @@ public:
   std::vector<cv::Mat> roi_picture_split_vec_;
   std::vector<Object> filter_objects_;
   char* trt_model_stream_{};
+  char* trt_model_stream2_{};
   nvinfer1::IRuntime* runtime_{};
+  nvinfer1::IRuntime* runtime2_{};
   nvinfer1::ICudaEngine* engine_{};
+  nvinfer1::ICudaEngine* engine2_{};
   nvinfer1::IExecutionContext* context_{};
+  nvinfer1::IExecutionContext* context2_{};
   float* prob_{};
+  float* prob2_{};
   int output_size_;
+  int output_size2_;
 
 private:
   ros::Publisher camera_pub_;

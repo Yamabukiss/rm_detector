@@ -18,7 +18,8 @@
 #define DEVICE 0
 static const int INPUT_W = 640;
 static const int INPUT_H = 640;
-static const int NUM_CLASSES = 10;
+static const int CAR_NUM_CLASSES = 1;
+static const int ARMOR_NUM_CLASSES = 10;
 const char* INPUT_BLOB_NAME = "images";
 const char* OUTPUT_BLOB_NAME = "output";
 static Logger gLogger;
@@ -32,7 +33,8 @@ Detector::Detector()
 void Detector::onInit()
 {
   nh_ = getMTPrivateNodeHandle();
-  nh_.getParam("g_model_path", model_path_);
+  nh_.getParam("g_car_model_path", car_model_path_);
+  nh_.getParam("g_armor_model_path", armor_model_path_);
   nh_.getParam("nodelet_name", nodelet_name_);
   nh_.getParam("camera_pub_name", camera_pub_name_);
   nh_.getParam("roi_data1_name", roi_data1_name_);
@@ -42,7 +44,8 @@ void Detector::onInit()
   nh_.getParam("roi_data5_name", roi_data5_name_);
   nh_.getParam("target_is_red", target_is_red_);
   nh_.getParam("target_is_blue", target_is_blue_);
-  initalizeInfer();
+  initalizeInferOfCar();
+  initalizeInferOfArmor();
   callback_ = boost::bind(&Detector::dynamicCallback, this, _1);
   server_.setCallback(callback_);
 
@@ -80,29 +83,39 @@ void Detector::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
 {
   cv_image_ = boost::make_shared<cv_bridge::CvImage>(*cv_bridge::toCvShare(image, image->encoding));
   mainFuc(cv_image_);
-  objects_.clear();
+  car_objects_.clear();
+  armor_objects_.clear();
 }
 
 void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
 {
   nms_thresh_ = config.g_nms_thresh;
+  nms_thresh2_ = config.g_nms_thresh2;
   bbox_conf_thresh_ = config.g_bbox_conf_thresh;
+  bbox_conf_thresh2_ = config.g_bbox_conf_thresh2;
   turn_on_image_ = config.g_turn_on_image;
   ROS_INFO("Settings have been seted");
 }
 
-void Detector::staticResize(cv::Mat& img)
+void Detector::staticResize(cv::Mat& img, const float& scale)
 {
-  int unpad_w = scale_ * img.cols;
-  int unpad_h = scale_ * img.rows;
+  int unpad_w = scale * img.cols;
+  int unpad_h = scale * img.rows;
   int resize_unpad = std::max(unpad_h, unpad_w);
+ if (img.rows>img.cols)
+ {
+   cv::copyMakeBorder(img, img, abs(img.rows - img.cols) / 2, abs(img.rows - img.cols) / 2, 0, 0, cv::BORDER_CONSTANT,
+                      cv::Scalar(122, 122, 122));
+   cv::resize(img, img, cv::Size(resize_unpad, resize_unpad));
+ }
+ else if (img.cols>img.rows)
+ {
+   cv::copyMakeBorder(img, img, 0, 0, abs(img.rows - img.cols) / 2, abs(img.rows - img.cols) / 2, cv::BORDER_CONSTANT,
+                      cv::Scalar(122, 122, 122));
+   cv::resize(img, img, cv::Size(resize_unpad, resize_unpad));
+ }
 
-  origin_img_w_ = img.cols;
-  origin_img_h_ = img.rows;
-  cv::copyMakeBorder(img, img, abs(img.rows - img.cols) / 2, abs(img.rows - img.cols) / 2, 0, 0, cv::BORDER_CONSTANT,
-                     cv::Scalar(122, 122, 122));
-  cv::resize(img, img, cv::Size(resize_unpad, resize_unpad));
-}
+ }
 
 float* Detector::blobFromImage(cv::Mat& img)
 {
@@ -144,7 +157,7 @@ void Detector::generateGridsAndStride(const int target_w, const int target_h)
 }
 
 void Detector::generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr,
-                                      float prob_threshold, std::vector<Object>& proposals)
+                                      float prob_threshold, std::vector<Object>& proposals, const int& NUM_CLASSES)
 {
   const int num_anchors = grid_strides.size();
 
@@ -165,7 +178,7 @@ void Detector::generateYoloxProposals(std::vector<GridAndStride> grid_strides, c
     float y0 = y_center - h * 0.5f;
 
     float box_objectness = feat_ptr[basic_pos + 4];
-    for (int class_idx = 0; class_idx < NUM_CLASSES; class_idx++)
+    for (int class_idx = 0; class_idx < CAR_NUM_CLASSES; class_idx++)
     {
       float box_cls_score = feat_ptr[basic_pos + 5 + class_idx];
       float box_prob = box_objectness * box_cls_score;
@@ -304,7 +317,7 @@ void Detector::publishDataForBlue(const Object& object)
 }
 
 void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vector<int> color_num_vec,
-                                      std::vector<Object> objects)
+                                      std::vector<Object> objects,int img_w,int img_h)
 {
   std::vector<int> undetectable_num_vec;
   undetectable_num_vec.resize(10);
@@ -321,10 +334,20 @@ void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vect
       {
         std::vector<cv::Point_<float>> roi_point_vec;
         std_msgs::Float32MultiArray roi_data;
-        roi_data_point_l_.x = (objects_[i].rect.tl().x) / scale_;
-        roi_data_point_l_.y = ((objects_[i].rect.tl().y) / scale_) - (abs(origin_img_w_ - origin_img_h_) / 2);
-        roi_data_point_r_.x = (objects_[i].rect.br().x) / scale_;
-        roi_data_point_r_.y = ((objects_[i].rect.br().y) / scale_) - (abs(origin_img_w_ - origin_img_h_) / 2);
+        if (armor_objects_[i].rect.width>armor_objects_[i].rect.height)
+        {
+          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_;
+          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
+          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_;
+          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
+        }
+        else if (armor_objects_[i].rect.height>armor_objects_[i].rect.width)
+        {
+          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_- (abs(img_w - img_h) / 2);
+          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) ;
+          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_- (abs(img_w - img_h) / 2);
+          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) ;
+        }
 
         roi_point_vec.push_back(roi_data_point_l_);
         roi_point_vec.push_back(roi_data_point_r_);
@@ -340,10 +363,20 @@ void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vect
       {
         std::vector<cv::Point_<float>> roi_point_vec;
         std_msgs::Float32MultiArray roi_data;
-        roi_data_point_l_.x = (objects_[i].rect.tl().x) / scale_;
-        roi_data_point_l_.y = ((objects_[i].rect.tl().y) / scale_) - (abs(origin_img_w_ - origin_img_h_) / 2);
-        roi_data_point_r_.x = (objects_[i].rect.br().x) / scale_;
-        roi_data_point_r_.y = ((objects_[i].rect.br().y) / scale_) - (abs(origin_img_w_ - origin_img_h_) / 2);
+        if (armor_objects_[i].rect.width>armor_objects_[i].rect.height)
+        {
+          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_;
+          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
+          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_;
+          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
+        }
+        else if (armor_objects_[i].rect.height>armor_objects_[i].rect.width)
+        {
+          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_- (abs(img_w - img_h) / 2);
+          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) ;
+          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_- (abs(img_w - img_h) / 2);
+          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) ;
+        }
 
         roi_point_vec.push_back(roi_data_point_l_);
         roi_point_vec.push_back(roi_data_point_r_);
@@ -359,10 +392,40 @@ void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vect
   }
 }
 
+void Detector::getRoiImg(const std::vector<Object>& object, std::vector<cv::Mat>& roi_vec)
+{
+  for (int i = 0; i < object.size(); i++)
+  {
+    cv::Rect rect(object[i].rect.tl().x, object[i].rect.tl().y, object[i].rect.width, object[i].rect.height);
+    cv::Mat roi = cv_image_->image(rect);
+    roi_vec.push_back(roi);
+  }
+}
+
+void Detector::detectArmor(std::vector<cv::Mat>& roi_vec)
+{
+  for (int i = 0; i < roi_vec.size(); i++)
+  {
+    scale2_ = std::min(INPUT_W / (roi_vec[i].cols * 1.0), INPUT_H / (roi_vec[i].rows * 1.0));
+    int img_w = roi_vec[i].cols;
+    int img_h = roi_vec[i].rows;
+    staticResize(roi_vec[i], scale2_);
+
+    float* blob;
+    blob = blobFromImage(roi_vec[i]);
+
+    doInference(*context2_, blob, prob2_, output_size2_, roi_vec[i].size());
+
+    decodeOutputs(prob2_, img_w, img_h);
+    if (turn_on_image_)
+      drawObjects(roi_vec[i]);
+  }
+}
+
 void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h)
 {
   std::vector<Object> proposals;
-  generateYoloxProposals(grid_strides_, prob, bbox_conf_thresh_, proposals);  // initial filtrate
+  generateYoloxProposals(grid_strides_, prob, bbox_conf_thresh2_, proposals, ARMOR_NUM_CLASSES);  // initial filtrate
 
   if (proposals.empty())
   {
@@ -371,21 +434,21 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
 
   qsortDescentInplace(proposals);
   std::vector<int> picked;
-  nmsSortedBboxes(proposals, picked, nms_thresh_);
+  nmsSortedBboxes(proposals, picked, nms_thresh2_);
 
   int count = picked.size();
-  if (count > 5)
-    count = 5;
-  objects_.resize(count);
+  if (count > 4)
+    count = 4;
+  armor_objects_.resize(count);
 
   for (int i = 0; i < count; i++)
   {
-    objects_[i] = proposals[picked[i]];
+    armor_objects_[i] = proposals[picked[i]];
 
-    float x0 = (objects_[i].rect.x);
-    float y0 = (objects_[i].rect.y);
-    float x1 = (objects_[i].rect.x + objects_[i].rect.width);
-    float y1 = (objects_[i].rect.y + objects_[i].rect.height);
+    float x0 = (armor_objects_[i].rect.x);
+    float y0 = (armor_objects_[i].rect.y);
+    float x1 = (armor_objects_[i].rect.x + armor_objects_[i].rect.width);
+    float y1 = (armor_objects_[i].rect.y + armor_objects_[i].rect.height);
 
     // clip
     x0 = std::max(std::min(x0, (float)(img_w - 1)), 0.f);
@@ -393,10 +456,10 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
     x1 = std::max(std::min(x1, (float)(img_w - 1)), 0.f);
     y1 = std::max(std::min(y1, (float)(img_h - 1)), 0.f);
 
-    objects_[i].rect.x = x0;
-    objects_[i].rect.y = y0;
-    objects_[i].rect.width = x1 - x0;
-    objects_[i].rect.height = y1 - y0;
+    armor_objects_[i].rect.x = x0;
+    armor_objects_[i].rect.y = y0;
+    armor_objects_[i].rect.width = x1 - x0;
+    armor_objects_[i].rect.height = y1 - y0;
   }  // make the real object
 
   std::vector<int> detectable_num_vec;
@@ -404,12 +467,20 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
   {
     roi_point_vec_.clear();
     roi_data_.data.clear();
-
-    roi_data_point_l_.x = (objects_[i].rect.tl().x) / scale_;
-    roi_data_point_l_.y = ((objects_[i].rect.tl().y) / scale_) - (abs(origin_img_w_ - origin_img_h_) / 2);
-    roi_data_point_r_.x = (objects_[i].rect.br().x) / scale_;
-    roi_data_point_r_.y = ((objects_[i].rect.br().y) / scale_) - (abs(origin_img_w_ - origin_img_h_) / 2);
-
+    if (armor_objects_[i].rect.width>armor_objects_[i].rect.height)
+    {
+      roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_;
+      roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
+      roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_;
+      roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
+    }
+    else if (armor_objects_[i].rect.height>armor_objects_[i].rect.width)
+    {
+      roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_- (abs(img_w - img_h) / 2);
+      roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) ;
+      roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_- (abs(img_w - img_h) / 2);
+      roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) ;
+    }
     roi_point_vec_.push_back(roi_data_point_l_);
     roi_point_vec_.push_back(roi_data_point_r_);
 
@@ -420,29 +491,29 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
 
     if (target_is_red_)
     {
-      publishDataForRed(objects_[i]);
+      publishDataForRed(armor_objects_[i]);
     }
     else if (target_is_blue_)
     {
-      publishDataForBlue(objects_[i]);
+      publishDataForBlue(armor_objects_[i]);
     }
-    detectable_num_vec.push_back(objects_[i].label);
+    detectable_num_vec.push_back(armor_objects_[i].label);
   }
   if (!prev_objects_.empty())
   {
     if (target_is_red_)
-      publishUndetectableNum(detectable_num_vec, red_lable_vec, prev_objects_);
+      publishUndetectableNum(detectable_num_vec, red_lable_vec, prev_objects_,img_w,img_h);
     else if (target_is_blue_)
-      publishUndetectableNum(detectable_num_vec, blue_lable_vec, prev_objects_);
+      publishUndetectableNum(detectable_num_vec, blue_lable_vec, prev_objects_,img_w,img_h);
   }
-  prev_objects_ = objects_;
+  prev_objects_ = armor_objects_;
 }
 
 void Detector::drawObjects(const cv::Mat& bgr)
 {
-  for (size_t i = 0; i < objects_.size(); i++)
+  for (size_t i = 0; i < car_objects_.size(); i++)
   {
-    cv::rectangle(bgr, objects_[i].rect, cv::Scalar(255, 0, 0), 2);
+    cv::rectangle(bgr, car_objects_[i].rect, cv::Scalar(255, 0, 0), 2);
   }
   camera_pub_.publish(cv_bridge::CvImage(std_msgs::Header(), "bgr8", bgr).toImageMsg());
 }
@@ -487,7 +558,7 @@ void Detector::doInference(nvinfer1::IExecutionContext& context, float* input, f
   CHECK(cudaFree(buffers[outputIndex]));
 }
 
-void Detector::initalizeInfer()
+void Detector::initalizeInferOfCar()
 {
   cudaSetDevice(DEVICE);
   // create a model using the API directly and serialize it to a stream
@@ -495,7 +566,7 @@ void Detector::initalizeInfer()
   size_t size{ 0 };
 
   //  if (argc == 4 && std::string(argv[2]) == "-i") {
-  const std::string engine_file_path = model_path_;
+  const std::string engine_file_path = car_model_path_;
   std::ifstream file(engine_file_path, std::ios::binary);
   if (file.good())
   {
@@ -532,29 +603,115 @@ void Detector::initalizeInfer()
   prob_ = prob;
 }
 
+void Detector::initalizeInferOfArmor()
+{
+  cudaSetDevice(DEVICE);
+  // create a model using the API directly and serialize it to a stream
+  char* trt_model_stream{ nullptr };
+  size_t size{ 0 };
+
+  //  if (argc == 4 && std::string(argv[2]) == "-i") {
+  const std::string engine_file_path = armor_model_path_;
+  std::ifstream file(engine_file_path, std::ios::binary);
+  if (file.good())
+  {
+    file.seekg(0, file.end);
+    size = file.tellg();
+    file.seekg(0, file.beg);
+    trt_model_stream = new char[size];
+    assert(trt_model_stream);
+    file.read(trt_model_stream, size);
+    file.close();
+  }
+
+  trt_model_stream2_ = trt_model_stream;
+
+  nvinfer1::IRuntime* runtime = nvinfer1::createInferRuntime(gLogger);
+  runtime2_ = runtime;
+  assert(runtime2_ != nullptr);
+  nvinfer1::ICudaEngine* engine = runtime->deserializeCudaEngine(trt_model_stream2_, size);
+  engine2_ = engine;
+  assert(engine2_ != nullptr);
+  nvinfer1::IExecutionContext* context = engine2_->createExecutionContext();
+  context2_ = context;
+  assert(context2_ != nullptr);
+  delete[] trt_model_stream;
+  auto out_dims = engine2_->getBindingDimensions(1);
+  auto output_size = 1;
+  for (int j = 0; j < out_dims.nbDims; j++)
+  {
+    output_size *= out_dims.d[j];
+  }
+  output_size2_ = output_size;
+
+  static float* prob = new float[output_size2_];
+  prob2_ = prob;
+}
+
 void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr)
 {
   scale_ = std::min(INPUT_W / (cv_image_->image.cols * 1.0), INPUT_H / (cv_image_->image.rows * 1.0));
   int img_w = cv_image_->image.cols;
   int img_h = cv_image_->image.rows;
-  staticResize(cv_image_->image);
+  staticResize(cv_image_->image, scale_);
 
   float* blob;
   blob = blobFromImage(cv_image_->image);
 
   doInference(*context_, blob, prob_, output_size_, cv_image_->image.size());
 
-  decodeOutputs(prob_, img_w, img_h);
-  if (turn_on_image_)
-  drawObjects(cv_image_->image);
+  std::vector<Object> proposals;
+  generateYoloxProposals(grid_strides_, prob_, bbox_conf_thresh_, proposals, CAR_NUM_CLASSES);  // initial filtrate
+
+  if (proposals.empty())
+  {
+    return;
+  }
+
+  qsortDescentInplace(proposals);
+  std::vector<int> picked;
+  nmsSortedBboxes(proposals, picked, nms_thresh_);
+
+  int count = picked.size();
+  if (count > 5)
+    count = 5;
+  car_objects_.resize(count);
+
+  for (int i = 0; i < count; i++)
+  {
+    car_objects_[i] = proposals[picked[i]];
+
+    float x0 = (car_objects_[i].rect.x);
+    float y0 = (car_objects_[i].rect.y);
+    float x1 = (car_objects_[i].rect.x + car_objects_[i].rect.width);
+    float y1 = (car_objects_[i].rect.y + car_objects_[i].rect.height);
+
+    // clip
+    x0 = std::max(std::min(x0, (float)(img_w - 1)), 0.f);
+    y0 = std::max(std::min(y0, (float)(img_h - 1)), 0.f);
+    x1 = std::max(std::min(x1, (float)(img_w - 1)), 0.f);
+    y1 = std::max(std::min(y1, (float)(img_h - 1)), 0.f);
+
+    car_objects_[i].rect.x = x0;
+    car_objects_[i].rect.y = y0;
+    car_objects_[i].rect.width = x1 - x0;
+    car_objects_[i].rect.height = y1 - y0;
+  }  // make the real object
+
+  std::vector<cv::Mat> roi_vec;
+  getRoiImg(car_objects_, roi_vec);
+  detectArmor(roi_vec);
   delete blob;
 }
 
 Detector::~Detector()
 {
   context_->destroy();
+  context2_->destroy();
   engine_->destroy();
+  engine2_->destroy();
   runtime_->destroy();
+  runtime2_->destroy();
 }
 }  // namespace rm_detector
 PLUGINLIB_EXPORT_CLASS(rm_detector::Detector, nodelet::Nodelet)
