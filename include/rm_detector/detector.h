@@ -88,7 +88,7 @@ public:
   void publishUndetectableNum(std::vector<int> detectable_vec, std::vector<int> color_num_vec,
                               std::vector<Object> objects);
 
-  cv_bridge::CvImagePtr cv_image_;
+  cv_bridge::CvImagePtr cv_image_{};
   std::vector<GridAndStride> grid_strides_;
   float nms_thresh_;
   float bbox_conf_thresh_;

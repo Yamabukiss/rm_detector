@@ -18,7 +18,7 @@
 #define DEVICE 0
 static const int INPUT_W = 640;
 static const int INPUT_H = 640;
-static const int NUM_CLASSES = 1;
+static const int NUM_CLASSES = 10;
 const char* INPUT_BLOB_NAME = "images";
 const char* OUTPUT_BLOB_NAME = "output";
 static Logger gLogger;
@@ -296,60 +296,11 @@ void Detector::nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vect
 
 void Detector::publishDataForRed(const Object& object)
 {
-  if (object.label == 0)
-  {
-    roi_data_pub_vec[0].publish(roi_data_);
-    return;
-  }
-  else if (object.label == 1)
-  {
-    roi_data_pub_vec[1].publish(roi_data_);
-    return;
-  }
-  else if (object.label == 2)
-  {
-    roi_data_pub_vec[2].publish(roi_data_);
-    return;
-  }
-  else if (object.label == 3)
-  {
-    roi_data_pub_vec[3].publish(roi_data_);
-    return;
-  }
-  else if (object.label == 4)
-  {
-    roi_data_pub_vec[4].publish(roi_data_);
-    return;
-  }
+  roi_data_pub_vec[object.label].publish(roi_data_);
 }
-
 void Detector::publishDataForBlue(const Object& object)
 {
-  if (object.label == 5)
-  {
-    roi_data_pub_vec[0].publish(roi_data_);
-    return;
-  }
-  else if (object.label == 6)
-  {
-    roi_data_pub_vec[1].publish(roi_data_);
-    return;
-  }
-  else if (object.label == 7)
-  {
-    roi_data_pub_vec[2].publish(roi_data_);
-    return;
-  }
-  else if (object.label == 8)
-  {
-    roi_data_pub_vec[3].publish(roi_data_);
-    return;
-  }
-  else if (object.label == 9)
-  {
-    roi_data_pub_vec[4].publish(roi_data_);
-    return;
-  }
+  roi_data_pub_vec[object.label - 5].publish(roi_data_);
 }
 
 void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vector<int> color_num_vec,
@@ -544,7 +495,7 @@ void Detector::initalizeInfer()
   size_t size{ 0 };
 
   //  if (argc == 4 && std::string(argv[2]) == "-i") {
-  const std::string engine_file_path = "/home/dynamicx/catkin_ws/src/rm_detector/yolox_l.engine";
+  const std::string engine_file_path = model_path_;
   std::ifstream file(engine_file_path, std::ios::binary);
   if (file.good())
   {
@@ -556,6 +507,7 @@ void Detector::initalizeInfer()
     file.read(trt_model_stream, size);
     file.close();
   }
+
   trt_model_stream_ = trt_model_stream;
 
   nvinfer1::IRuntime* runtime = nvinfer1::createInferRuntime(gLogger);
@@ -593,6 +545,7 @@ void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr)
   doInference(*context_, blob, prob_, output_size_, cv_image_->image.size());
 
   decodeOutputs(prob_, img_w, img_h);
+  if (turn_on_image_)
   drawObjects(cv_image_->image);
   delete blob;
 }

@@ -10,7 +10,7 @@
   <node pkg="nodelet" type="nodelet" name="nodelet_manager"  args="manager" output="screen"/>
   <!-- nodelet'tag should follow obey the following format -->
      <node pkg="nodelet" type="nodelet" name="armor_detect_nodelet" args="load rm_detector/armor_detector nodelet_manager" output="screen" >
-     <param name="g_model_path"  type="string" value="$(find rm_detector)/engine1.engine"/>
+     <param name="g_model_path"  type="string" value="$(find rm_detector)/yolox_s_car.engine"/>
      <param name="nodelet_name"  type="string" value="detector_nodelet"/>
      <param name="camera_pub_name"  type="string" value="armor_detector_image_publisher"/>
      <param name="roi_data1_name"  type="string" value="roi_data1"/>
