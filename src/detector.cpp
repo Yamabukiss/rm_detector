@@ -50,6 +50,7 @@ void Detector::onInit()
   server_.setCallback(callback_);
 
   camera_sub_ = nh_.subscribe("/hk_camera/image_raw", 1, &Detector::receiveFromCam, this);
+
   camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1);
 
   roi_data_pub1_ = nh_.advertise<std_msgs::Float32MultiArray>(roi_data1_name_, 1);
@@ -84,7 +85,6 @@ void Detector::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
   cv_image_ = boost::make_shared<cv_bridge::CvImage>(*cv_bridge::toCvShare(image, image->encoding));
   mainFuc(cv_image_);
   car_objects_.clear();
-  armor_objects_.clear();
 }
 
 void Detector::dynamicCallback(rm_detector::dynamicConfig& config)
@@ -194,28 +194,6 @@ void Detector::generateYoloxProposals(std::vector<GridAndStride> grid_strides, c
         proposals.push_back(obj);
       }
     }
-
-    for (int i = 0; i < proposals.size(); i++)
-    {
-      if (target_is_red_)
-      {
-        auto signal = std::find(std::begin(red_lable_vec), std::end(red_lable_vec), proposals[i].label);
-        if (signal != std::end(red_lable_vec))
-        {
-          filter_objects_.push_back(proposals[i]);
-        }
-      }
-      else if (target_is_blue_)
-      {
-        auto signal = std::find(std::begin(blue_lable_vec), std::end(blue_lable_vec), proposals[i].label);
-        if (signal != std::end(blue_lable_vec))
-        {
-          filter_objects_.push_back(proposals[i]);
-        }
-      }
-    }
-    proposals.assign(filter_objects_.begin(), filter_objects_.end());
-    filter_objects_.clear();
   }
 }
 
@@ -333,28 +311,18 @@ void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vect
       {
         std::vector<cv::Point_<float>> roi_point_vec;
         std_msgs::Float32MultiArray roi_data;
-        if (armor_objects_[i].rect.width > armor_objects_[i].rect.height)
-        {
-          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_;
-          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
-          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_;
-          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
-        }
-        else if (armor_objects_[i].rect.height > armor_objects_[i].rect.width)
-        {
-          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_ - (abs(img_w - img_h) / 2);
-          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_);
-          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_ - (abs(img_w - img_h) / 2);
-          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_);
-        }
+        roi_data_point_l_.x = (car_objects_[i].rect.tl().x) / scale_;
+        roi_data_point_l_.y = ((car_objects_[i].rect.tl().y) / scale_) - (abs(img_w - img_h) / 2);
+        roi_data_point_r_.x = (car_objects_[i].rect.br().x) / scale_;
+          roi_data_point_r_.y = ((car_objects_[i].rect.br().y) / scale_) - (abs(img_w - img_h) / 2);
 
         roi_point_vec.push_back(roi_data_point_l_);
         roi_point_vec.push_back(roi_data_point_r_);
 
-        roi_data.data.push_back(roi_point_vec[0].x);
-        roi_data.data.push_back(roi_point_vec[0].y);
-        roi_data.data.push_back(roi_point_vec[1].x);
-        roi_data.data.push_back(roi_point_vec[1].y);
+        roi_data.data.push_back(roi_point_vec[0].x );
+        roi_data.data.push_back(roi_point_vec[0].y );
+        roi_data.data.push_back(roi_point_vec[1].x );
+        roi_data.data.push_back(roi_point_vec[1].y );
 
         roi_data_pub_vec[objects[i].label].publish(roi_data);
       }
@@ -362,28 +330,18 @@ void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vect
       {
         std::vector<cv::Point_<float>> roi_point_vec;
         std_msgs::Float32MultiArray roi_data;
-        if (armor_objects_[i].rect.width > armor_objects_[i].rect.height)
-        {
-          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_;
-          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
-          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_;
-          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
-        }
-        else if (armor_objects_[i].rect.height > armor_objects_[i].rect.width)
-        {
-          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_ - (abs(img_w - img_h) / 2);
-          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_);
-          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_ - (abs(img_w - img_h) / 2);
-          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_);
-        }
-
+          roi_data_point_l_.x = (car_objects_[i].rect.tl().x) / scale2_;
+          roi_data_point_l_.y = ((car_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
+          roi_data_point_r_.x = (car_objects_[i].rect.br().x) / scale2_;
+          roi_data_point_r_.y = ((car_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
+          
         roi_point_vec.push_back(roi_data_point_l_);
         roi_point_vec.push_back(roi_data_point_r_);
 
-        roi_data.data.push_back(roi_point_vec[0].x);
-        roi_data.data.push_back(roi_point_vec[0].y);
-        roi_data.data.push_back(roi_point_vec[1].x);
-        roi_data.data.push_back(roi_point_vec[1].y);
+        roi_data.data.push_back(roi_point_vec[0].x );
+        roi_data.data.push_back(roi_point_vec[0].y );
+        roi_data.data.push_back(roi_point_vec[1].x );
+        roi_data.data.push_back(roi_point_vec[1].y );
 
         roi_data_pub_vec[objects[i].label - 5].publish(roi_data);
       }
@@ -401,13 +359,11 @@ void Detector::getRoiImg(const std::vector<Object>& object, std::vector<cv::Mat>
   }
 }
 
-void Detector::detectArmor(std::vector<cv::Mat>& roi_vec)
+void Detector::detectArmor(std::vector<cv::Mat>& roi_vec) //armor_point<-->roi
 {
   for (int i = 0; i < roi_vec.size(); i++)
   {
     scale2_ = std::min(INPUT_W / (roi_vec[i].cols * 1.0), INPUT_H / (roi_vec[i].rows * 1.0));
-    int img_w = roi_vec[i].cols;
-    int img_h = roi_vec[i].rows;
     staticResize(roi_vec[i], scale2_);
 
     float* blob;
@@ -415,97 +371,45 @@ void Detector::detectArmor(std::vector<cv::Mat>& roi_vec)
 
     doInference(*context2_, blob, prob2_, output_size2_, roi_vec[i].size());
 
-    decodeOutputs(prob2_, img_w, img_h);
-    if (turn_on_image_)
-      drawObjects(roi_vec[i]);
-  }
-}
-
-void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h)
-{
-  std::vector<Object> proposals;
-  generateYoloxProposals(grid_strides_, prob, bbox_conf_thresh2_, proposals, ARMOR_NUM_CLASSES);  // initial filtrate
-
-  if (proposals.empty())
-  {
-    return;
-  }
-
-  qsortDescentInplace(proposals);
-  std::vector<int> picked;
-  nmsSortedBboxes(proposals, picked, nms_thresh2_);
-
-  int count = picked.size();
-  if (count > 4)
-    count = 4;
-  armor_objects_.resize(count);
-
-  for (int i = 0; i < count; i++)
-  {
-    armor_objects_[i] = proposals[picked[i]];
-
-    float x0 = (armor_objects_[i].rect.x);
-    float y0 = (armor_objects_[i].rect.y);
-    float x1 = (armor_objects_[i].rect.x + armor_objects_[i].rect.width);
-    float y1 = (armor_objects_[i].rect.y + armor_objects_[i].rect.height);
-
-    // clip
-    x0 = std::max(std::min(x0, (float)(img_w - 1)), 0.f);
-    y0 = std::max(std::min(y0, (float)(img_h - 1)), 0.f);
-    x1 = std::max(std::min(x1, (float)(img_w - 1)), 0.f);
-    y1 = std::max(std::min(y1, (float)(img_h - 1)), 0.f);
-
-    armor_objects_[i].rect.x = x0;
-    armor_objects_[i].rect.y = y0;
-    armor_objects_[i].rect.width = x1 - x0;
-    armor_objects_[i].rect.height = y1 - y0;
-  }  // make the real object
-
-  std::vector<int> detectable_num_vec;
-  for (size_t i = 0; i < 5; i++)
-  {
-    roi_point_vec_.clear();
-    roi_data_.data.clear();
-    if (armor_objects_[i].rect.width > armor_objects_[i].rect.height)
+    Object armor_object;
+    std::vector<Object> proposals;
+    std::vector<Object> filter_objects;
+    generateYoloxProposals(grid_strides_, prob2_, bbox_conf_thresh2_, proposals, ARMOR_NUM_CLASSES);  // initial filtrate
+    
+    for (int j = 0; j < proposals.size(); j++)
     {
-      roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_;
-      roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
-      roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_;
-      roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
+      if (target_is_red_)
+      {
+        auto signal = std::find(std::begin(red_lable_vec), std::end(red_lable_vec), proposals[j].label);
+        if (signal != std::end(red_lable_vec))
+        {
+          filter_objects.push_back(proposals[j]);
+        }
+      }
+      else if (target_is_blue_)
+      {
+        auto signal = std::find(std::begin(blue_lable_vec), std::end(blue_lable_vec), proposals[j].label);
+        if (signal != std::end(blue_lable_vec))
+        {
+          filter_objects.push_back(proposals[j]);
+        }
+      }
     }
-    else if (armor_objects_[i].rect.height > armor_objects_[i].rect.width)
+    proposals.assign(filter_objects.begin(), filter_objects.end());
+    filter_objects.clear();
+    
+    if (proposals.empty())
     {
-      roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_ - (abs(img_w - img_h) / 2);
-      roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_);
-      roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_ - (abs(img_w - img_h) / 2);
-      roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_);
+      return;
     }
-    roi_point_vec_.push_back(roi_data_point_l_);
-    roi_point_vec_.push_back(roi_data_point_r_);
 
-    roi_data_.data.push_back(roi_point_vec_[0].x);
-    roi_data_.data.push_back(roi_point_vec_[0].y);
-    roi_data_.data.push_back(roi_point_vec_[1].x);
-    roi_data_.data.push_back(roi_point_vec_[1].y);
-
-    if (target_is_red_)
-    {
-      publishDataForRed(armor_objects_[i]);
-    }
-    else if (target_is_blue_)
-    {
-      publishDataForBlue(armor_objects_[i]);
-    }
-    detectable_num_vec.push_back(armor_objects_[i].label);
+    qsortDescentInplace(proposals);
+    std::vector<int> picked;
+    nmsSortedBboxes(proposals, picked, nms_thresh2_);
+  
+    armor_object = proposals[picked[0]];
+    armor_object_vec_.push_back(armor_object);
   }
-  if (!prev_objects_.empty())
-  {
-    if (target_is_red_)
-      publishUndetectableNum(detectable_num_vec, red_lable_vec, prev_objects_, img_w, img_h);
-    else if (target_is_blue_)
-      publishUndetectableNum(detectable_num_vec, blue_lable_vec, prev_objects_, img_w, img_h);
-  }
-  prev_objects_ = armor_objects_;
 }
 
 void Detector::drawObjects(const cv::Mat& bgr)
@@ -698,19 +602,57 @@ void Detector::mainFuc(cv_bridge::CvImagePtr& image_ptr)
   }  // make the real object
 
   std::vector<cv::Mat> roi_vec;
-  getRoiImg(car_objects_, roi_vec);
+  getRoiImg(car_objects_, roi_vec); //obj->roi->armor
   detectArmor(roi_vec);
+
+  if (armor_object_vec_.empty())
+    return ;
+
   delete blob;
+  
+//  std::vector<int> detectable_num_vec;
+  for (size_t i = 0; i < car_objects_.size(); i++)
+  {
+    roi_point_vec_.clear();
+    roi_data_.data.clear();
+    
+    roi_data_point_l_.x = (car_objects_[i].rect.tl().x) / scale_;
+    roi_data_point_l_.y = ((car_objects_[i].rect.tl().y) / scale_) - (abs(img_w - img_h) / 2);
+    roi_data_point_r_.x = (car_objects_[i].rect.br().x) / scale_;
+    roi_data_point_r_.y = ((car_objects_[i].rect.br().y) / scale_) - (abs(img_w - img_h) / 2);
+      
+    roi_point_vec_.push_back(roi_data_point_l_);
+    roi_point_vec_.push_back(roi_data_point_r_);
+    
+    roi_data_.data.push_back(roi_point_vec_[0].x );  // output the point in origin img
+    roi_data_.data.push_back(roi_point_vec_[0].y );
+    roi_data_.data.push_back(roi_point_vec_[1].x );
+    roi_data_.data.push_back(roi_point_vec_[1].y);
+
+    if (target_is_red_)
+    {
+      publishDataForRed(armor_object_vec_[i]);
+    }
+    else if (target_is_blue_)
+    {
+      publishDataForBlue(armor_object_vec_[i]);
+    }
+//    detectable_num_vec.push_back(armor_object_vec_[i].label);
+  }
+//  if (!prev_objects_.empty())
+//  {
+//    if (target_is_red_)
+//      publishUndetectableNum(detectable_num_vec, red_lable_vec, prev_objects_, img_w, img_h);
+//    else if (target_is_blue_)
+//      publishUndetectableNum(detectable_num_vec, blue_lable_vec, prev_objects_, img_w, img_h);
+//  }
+  if (turn_on_image_)
+  drawObjects(cv_image_->image);
 }
+
 
 Detector::~Detector()
 {
-  context_->destroy();
-  context2_->destroy();
-  engine_->destroy();
-  engine2_->destroy();
-  runtime_->destroy();
-  runtime2_->destroy();
 }
 }  // namespace rm_detector
 PLUGINLIB_EXPORT_CLASS(rm_detector::Detector, nodelet::Nodelet)

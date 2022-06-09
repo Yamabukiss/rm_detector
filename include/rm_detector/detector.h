@@ -68,7 +68,7 @@ public:
 
   void nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold);
 
-  void decodeOutputs(const float* prob, const int img_w, const int img_h);
+  void decodeOutputs(const float* prob, const int img_w, const int img_h, const int& car_num);
 
   void drawObjects(const cv::Mat& bgr);
 
@@ -104,7 +104,7 @@ public:
   cv::Mat_<float> camera_matrix_;
   std::vector<float> discoeffs_vec_;
   std::vector<float> camera_matrix_vec_;
-  std::vector<Object> armor_objects_;
+  Object armor_object_;
   std::vector<Object> car_objects_;
   std::vector<Object> prev_objects_;
   std::vector<int> blue_lable_vec;
@@ -112,8 +112,6 @@ public:
   std::string car_model_path_;
   std::string armor_model_path_;
   std::string model_path_;
-  int origin_img_w_;
-  int origin_img_h_;
   float scale_;
   float scale2_;
   bool turn_on_image_;
@@ -144,6 +142,7 @@ public:
   float* prob2_{};
   int output_size_;
   int output_size2_;
+  std::vector<Object> armor_object_vec_;
 
 private:
   ros::Publisher camera_pub_;
