@@ -72,10 +72,6 @@ public:
 
   void decodeOutputs(const float* prob, const int img_w, const int img_h);
 
-  void selectTargetColor(std::vector<Object>& proposals, std::vector<cv::Mat>& color_filtrated_roi_vec);
-
-  void contoursProcess(std::vector<Object>& proposals, std::vector<cv::Mat>& color_filtrated_roi_vec);
-
   void drawObjects(const cv::Mat& bgr);
 
   void mainFuc(cv_bridge::CvImagePtr& image_ptr);
@@ -86,6 +82,11 @@ public:
 
   void doInference(nvinfer1::IExecutionContext& context, float* input, float* output, const int output_size,
                    cv::Size input_shape);
+
+  void publishDataForRed(const Object& object);
+  void publishDataForBlue(const Object& object);
+  void publishUndetectableNum(std::vector<int> detectable_vec, std::vector<int> color_num_vec,
+                              std::vector<Object> objects);
 
   cv_bridge::CvImagePtr cv_image_;
   std::vector<GridAndStride> grid_strides_;
@@ -100,6 +101,9 @@ public:
   std::vector<float> discoeffs_vec_;
   std::vector<float> camera_matrix_vec_;
   std::vector<Object> objects_;
+  std::vector<Object> prev_objects_;
+  std::vector<int> blue_lable_vec;
+  std::vector<int> red_lable_vec;
   std::string model_path_;
   int origin_img_w_;
   int origin_img_h_;
@@ -119,12 +123,7 @@ public:
   cv::Mat roi_picture_;
   std::vector<cv::Mat> roi_picture_vec_;
   std::vector<cv::Mat> roi_picture_split_vec_;
-  float ratio_of_pixels_;
-  int counter_of_pixel_;
-  int pixels_thresh_;
   std::vector<Object> filter_objects_;
-  int binary_threshold_;
-  float aspect_ratio_;
   char* trt_model_stream_{};
   nvinfer1::IRuntime* runtime_{};
   nvinfer1::ICudaEngine* engine_{};

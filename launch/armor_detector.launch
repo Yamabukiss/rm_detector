@@ -18,6 +18,8 @@
      <param name="roi_data3_name"  type="string" value="roi_data3"/>
      <param name="roi_data4_name"  type="string" value="roi_data4"/>
      <param name="roi_data5_name"  type="string" value="roi_data5"/>
+    <param name="target_is_red"  type="string" value="true"/>
+     <param name="target_is_blue"  type="string" value="false"/>
 <!--      <rosparam command="load" file="$(find rm_detector)/config/camera.yaml" /> -->
      </node>
 
