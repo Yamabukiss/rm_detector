@@ -102,20 +102,19 @@ void Detector::staticResize(cv::Mat& img, const float& scale)
   int unpad_w = scale * img.cols;
   int unpad_h = scale * img.rows;
   int resize_unpad = std::max(unpad_h, unpad_w);
- if (img.rows>img.cols)
- {
-   cv::copyMakeBorder(img, img, abs(img.rows - img.cols) / 2, abs(img.rows - img.cols) / 2, 0, 0, cv::BORDER_CONSTANT,
-                      cv::Scalar(122, 122, 122));
-   cv::resize(img, img, cv::Size(resize_unpad, resize_unpad));
- }
- else if (img.cols>img.rows)
- {
-   cv::copyMakeBorder(img, img, 0, 0, abs(img.rows - img.cols) / 2, abs(img.rows - img.cols) / 2, cv::BORDER_CONSTANT,
-                      cv::Scalar(122, 122, 122));
-   cv::resize(img, img, cv::Size(resize_unpad, resize_unpad));
- }
-
- }
+  if (img.rows > img.cols)
+  {
+    cv::copyMakeBorder(img, img, abs(img.rows - img.cols) / 2, abs(img.rows - img.cols) / 2, 0, 0, cv::BORDER_CONSTANT,
+                       cv::Scalar(122, 122, 122));
+    cv::resize(img, img, cv::Size(resize_unpad, resize_unpad));
+  }
+  else if (img.cols > img.rows)
+  {
+    cv::copyMakeBorder(img, img, 0, 0, abs(img.rows - img.cols) / 2, abs(img.rows - img.cols) / 2, cv::BORDER_CONSTANT,
+                       cv::Scalar(122, 122, 122));
+    cv::resize(img, img, cv::Size(resize_unpad, resize_unpad));
+  }
+}
 
 float* Detector::blobFromImage(cv::Mat& img)
 {
@@ -178,7 +177,7 @@ void Detector::generateYoloxProposals(std::vector<GridAndStride> grid_strides, c
     float y0 = y_center - h * 0.5f;
 
     float box_objectness = feat_ptr[basic_pos + 4];
-    for (int class_idx = 0; class_idx < CAR_NUM_CLASSES; class_idx++)
+    for (int class_idx = 0; class_idx < NUM_CLASSES; class_idx++)
     {
       float box_cls_score = feat_ptr[basic_pos + 5 + class_idx];
       float box_prob = box_objectness * box_cls_score;
@@ -317,7 +316,7 @@ void Detector::publishDataForBlue(const Object& object)
 }
 
 void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vector<int> color_num_vec,
-                                      std::vector<Object> objects,int img_w,int img_h)
+                                      std::vector<Object> objects, int img_w, int img_h)
 {
   std::vector<int> undetectable_num_vec;
   undetectable_num_vec.resize(10);
@@ -334,19 +333,19 @@ void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vect
       {
         std::vector<cv::Point_<float>> roi_point_vec;
         std_msgs::Float32MultiArray roi_data;
-        if (armor_objects_[i].rect.width>armor_objects_[i].rect.height)
+        if (armor_objects_[i].rect.width > armor_objects_[i].rect.height)
         {
           roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_;
           roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
           roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_;
           roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
         }
-        else if (armor_objects_[i].rect.height>armor_objects_[i].rect.width)
+        else if (armor_objects_[i].rect.height > armor_objects_[i].rect.width)
         {
-          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_- (abs(img_w - img_h) / 2);
-          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) ;
-          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_- (abs(img_w - img_h) / 2);
-          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) ;
+          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_ - (abs(img_w - img_h) / 2);
+          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_);
+          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_ - (abs(img_w - img_h) / 2);
+          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_);
         }
 
         roi_point_vec.push_back(roi_data_point_l_);
@@ -363,19 +362,19 @@ void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vect
       {
         std::vector<cv::Point_<float>> roi_point_vec;
         std_msgs::Float32MultiArray roi_data;
-        if (armor_objects_[i].rect.width>armor_objects_[i].rect.height)
+        if (armor_objects_[i].rect.width > armor_objects_[i].rect.height)
         {
           roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_;
           roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
           roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_;
           roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
         }
-        else if (armor_objects_[i].rect.height>armor_objects_[i].rect.width)
+        else if (armor_objects_[i].rect.height > armor_objects_[i].rect.width)
         {
-          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_- (abs(img_w - img_h) / 2);
-          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) ;
-          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_- (abs(img_w - img_h) / 2);
-          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) ;
+          roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_ - (abs(img_w - img_h) / 2);
+          roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_);
+          roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_ - (abs(img_w - img_h) / 2);
+          roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_);
         }
 
         roi_point_vec.push_back(roi_data_point_l_);
@@ -467,19 +466,19 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
   {
     roi_point_vec_.clear();
     roi_data_.data.clear();
-    if (armor_objects_[i].rect.width>armor_objects_[i].rect.height)
+    if (armor_objects_[i].rect.width > armor_objects_[i].rect.height)
     {
       roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_;
       roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
       roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_;
       roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
     }
-    else if (armor_objects_[i].rect.height>armor_objects_[i].rect.width)
+    else if (armor_objects_[i].rect.height > armor_objects_[i].rect.width)
     {
-      roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_- (abs(img_w - img_h) / 2);
-      roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_) ;
-      roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_- (abs(img_w - img_h) / 2);
-      roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_) ;
+      roi_data_point_l_.x = (armor_objects_[i].rect.tl().x) / scale2_ - (abs(img_w - img_h) / 2);
+      roi_data_point_l_.y = ((armor_objects_[i].rect.tl().y) / scale2_);
+      roi_data_point_r_.x = (armor_objects_[i].rect.br().x) / scale2_ - (abs(img_w - img_h) / 2);
+      roi_data_point_r_.y = ((armor_objects_[i].rect.br().y) / scale2_);
     }
     roi_point_vec_.push_back(roi_data_point_l_);
     roi_point_vec_.push_back(roi_data_point_r_);
@@ -502,9 +501,9 @@ void Detector::decodeOutputs(const float* prob, const int img_w, const int img_h
   if (!prev_objects_.empty())
   {
     if (target_is_red_)
-      publishUndetectableNum(detectable_num_vec, red_lable_vec, prev_objects_,img_w,img_h);
+      publishUndetectableNum(detectable_num_vec, red_lable_vec, prev_objects_, img_w, img_h);
     else if (target_is_blue_)
-      publishUndetectableNum(detectable_num_vec, blue_lable_vec, prev_objects_,img_w,img_h);
+      publishUndetectableNum(detectable_num_vec, blue_lable_vec, prev_objects_, img_w, img_h);
   }
   prev_objects_ = armor_objects_;
 }
