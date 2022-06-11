@@ -32,7 +32,7 @@ Detector::Detector()
 
 void Detector::onInit()
 {
-  //  nh_ = getMTPrivateNodeHandle();
+  nh_ = getMTPrivateNodeHandle();
   nh_.getParam("g_car_model_path", car_model_path_);
   nh_.getParam("g_armor_model_path", armor_model_path_);
   nh_.getParam("nodelet_name", nodelet_name_);
