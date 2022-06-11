@@ -11,8 +11,10 @@
   <node pkg="nodelet" type="nodelet" name="nodelet_manager"  args="manager" output="screen"/>
   <!-- nodelet'tag should follow obey the following format -->
      <node pkg="nodelet" type="nodelet" name="detect_nodelet" args="load rm_detector/armor_detector nodelet_manager" output="screen" >
-     <param name="g_car_model_path"  type="string" value="$(find rm_detector)/285epoch_official_car1024.engine"/>
-     <param name="g_armor_model_path"  type="string" value="$(find rm_detector)/40epoch_crop_bar1024.engine"/>
+     <param name="g_car_model_path_left_"  type="string" value="$(find rm_detector)/285epoch_official_car1024.engine"/>
+     <param name="g_armor_model_path_left_"  type="string" value="$(find rm_detector)/40epoch_crop_bar1024.engine"/>
+     <param name="g_car_model_path_right_"  type="string" value="$(find rm_detector)/285epoch_official_car1024.engine"/>
+     <param name="g_armor_model_path_right_"  type="string" value="$(find rm_detector)/40epoch_crop_bar1024.engine"/>
      <param name="camera_pub_name"  type="string" value="left_armor_detector_image_publisher"/>
      <param name="roi_data1_name"  type="string" value="roi_data1"/>
      <param name="roi_data2_name"  type="string" value="roi_data2"/>
@@ -24,8 +26,10 @@
      <param name="roi_data8_name"  type="string" value="roi_data8"/>
      <param name="roi_data9_name"  type="string" value="roi_data9"/>
      <param name="roi_data10_name"  type="string" value="roi_data10"/>
-     <param name="target_is_red"  type="bool" value="true"/>
-     <param name="target_is_blue"  type="bool" value="false"/>
+     <param name="target_is_red_left_"  type="bool" value="true"/>
+     <param name="target_is_blue_left_"  type="bool" value="false"/>
+     <param name="target_is_red_right_"  type="bool" value="true"/>
+     <param name="target_is_blue_right_"  type="bool" value="false"/>
 <!--      <rosparam command="load" file="$(find rm_detector)/config/camera.yaml" /> -->
      </node>
 
