@@ -10,38 +10,42 @@
 <!--     left_camera -->
   <node pkg="nodelet" type="nodelet" name="nodelet_manager"  args="manager" output="screen"/>
   <!-- nodelet'tag should follow obey the following format -->
-     <node pkg="nodelet" type="nodelet" name="left_camera_proc" args="load rm_detector/armor_detector nodelet_manager" output="screen" >
-     <param name="left_camera"  type="string" value="ture"/>
-     <param name="g_car_model_path"  type="string" value="$(find rm_detector)/yolox_s_car.engine"/>
-     <param name="g_armor_model_path"  type="string" value="$(find rm_detector)/yolox_l_armor_official.engine"/>
-     <param name="nodelet_name"  type="string" value="left_camera_proc"/>
+     <node pkg="nodelet" type="nodelet" name="detect_nodelet" args="load rm_detector/armor_detector nodelet_manager" output="screen" >
+     <param name="g_car_model_path"  type="string" value="$(find rm_detector)/285epoch_official_car1024.engine"/>
+     <param name="g_armor_model_path"  type="string" value="$(find rm_detector)/40epoch_crop_bar1024.engine"/>
      <param name="camera_pub_name"  type="string" value="left_armor_detector_image_publisher"/>
      <param name="roi_data1_name"  type="string" value="roi_data1"/>
      <param name="roi_data2_name"  type="string" value="roi_data2"/>
      <param name="roi_data3_name"  type="string" value="roi_data3"/>
      <param name="roi_data4_name"  type="string" value="roi_data4"/>
      <param name="roi_data5_name"  type="string" value="roi_data5"/>
-     <param name="target_is_red"  type="string" value="false"/>
-     <param name="target_is_blue"  type="string" value="true"/>
+     <param name="roi_data6_name"  type="string" value="roi_data6"/>
+     <param name="roi_data7_name"  type="string" value="roi_data7"/>
+     <param name="roi_data8_name"  type="string" value="roi_data8"/>
+     <param name="roi_data9_name"  type="string" value="roi_data9"/>
+     <param name="roi_data10_name"  type="string" value="roi_data10"/>
+     <param name="target_is_red"  type="bool" value="true"/>
+     <param name="target_is_blue"  type="bool" value="false"/>
 <!--      <rosparam command="load" file="$(find rm_detector)/config/camera.yaml" /> -->
      </node>
 
-    right_camera
-      <node pkg="nodelet" type="nodelet" name="right_camera_proc" args="load rm_detector/armor_detector nodelet_manager" output="screen" >
-      <param name="left_camera"  type="string" value="false"/>
-      <param name="g_car_model_path"  type="string" value="$(find rm_detector)/yolox_s_car.engine"/>
-      <param name="g_armor_model_path"  type="string" value="$(find rm_detector)/yolox_l_armor_official.engine"/>
-      <param name="nodelet_name"  type="string" value="right_camera_proc"/>
-      <param name="camera_pub_name"  type="string" value="right_armor_detector_image_publisher"/>
-      <param name="roi_data1_name"  type="string" value="roi_data1"/>
-      <param name="roi_data2_name"  type="string" value="roi_data2"/>
-      <param name="roi_data3_name"  type="string" value="roi_data3"/>
-      <param name="roi_data4_name"  type="string" value="roi_data4"/>
-      <param name="roi_data5_name"  type="string" value="roi_data5"/>
-      <param name="target_is_red"  type="string" value="false"/>
-      <param name="target_is_blue"  type="string" value="true"/>
-      <rosparam command="load" file="$(find rm_detector)/config/camera.yaml" />
-      </node>
+<!--     right_camera -->
+<!--   <node pkg="nodelet" type="nodelet" name="right_nodelet_manager"  args="manager" output="screen"/> -->
+<!--       <node pkg="nodelet" type="nodelet" name="right_camera_proc" args="load rm_detector/armor_detector nodelet_manager" output="screen" > -->
+<!--       <param name="left_camera"  type="bool" value="false"/> -->
+<!--       <param name="g_car_model_path"  type="string" value="$(find rm_detector)/285epoch_official_car.engine"/> -->
+<!--       <param name="g_armor_model_path"  type="string" value="$(find rm_detector)/40epoch_crop_bar.engine"/> -->
+<!--       <param name="nodelet_name"  type="string" value="right_camera_proc"/> -->
+<!--       <param name="camera_pub_name"  type="string" value="right_armor_detector_image_publisher"/> -->
+<!--       <param name="roi_data1_name"  type="string" value="roi_data1"/> -->
+<!--       <param name="roi_data2_name"  type="string" value="roi_data2"/> -->
+<!--       <param name="roi_data3_name"  type="string" value="roi_data3"/> -->
+<!--       <param name="roi_data4_name"  type="string" value="roi_data4"/> -->
+<!--       <param name="roi_data5_name"  type="string" value="roi_data5"/> -->
+<!--       <param name="target_is_red"  type="bool" value="false"/> -->
+<!--       <param name="target_is_blue"  type="bool" value="true"/> -->
+<!--       <rosparam command="load" file="$(find rm_detector)/config/camera.yaml" /> -->
+<!--       </node> -->
 
 <!--     <node pkg="nodelet" type="nodelet" name="hk_camera" -->
 <!--           args="load hk_camera/HKCameraNodelet nodelet_manager" -->
@@ -56,28 +60,28 @@
 <!--         <param name="raising_filter_value" value="0"/> -->
 <!--     </node> -->
 
-  <node pkg="nodelet" type="nodelet" name="vision_nodelet_right" args="manager" output="screen"/>
-        <node pkg="nodelet" type="nodelet" name="hk_camera_right" args="load hk_camera/HKCameraNodelet vision_nodelet_right" output="screen">
-        <param name="camera_name" value="hk_right"/>
-        <param name="image_width" value="1440"/>
-        <param name="image_height" value="1080"/>
-        <param name="pixel_format" value="bgr8"/>
-        <param name="camera_info_url" value="file://$(find hk_camera)/config/hk_right.yaml"/>
-        <param name="camera_frame_id" value="camera_right_optical_frame"/>
-        <param name="camera_sn" value="00J67375789"/>
-        <param name="frame_rate" value="160"/>
-        </node>
+<!--   <node pkg="nodelet" type="nodelet" name="vision_nodelet_right" args="manager" output="screen"/> -->
+<!--         <node pkg="nodelet" type="nodelet" name="hk_camera_right" args="load hk_camera/HKCameraNodelet vision_nodelet_right" output="screen"> -->
+<!--         <param name="camera_name" value="hk_right"/> -->
+<!--         <param name="image_width" value="1440"/> -->
+<!--         <param name="image_height" value="1080"/> -->
+<!--         <param name="pixel_format" value="bgr8"/> -->
+<!--         <param name="camera_info_url" value="file://$(find hk_camera)/config/hk_right.yaml"/> -->
+<!--         <param name="camera_frame_id" value="camera_right_optical_frame"/> -->
+<!--         <param name="camera_sn" value="00J67375789"/> -->
+<!--         <param name="frame_rate" value="160"/> -->
+<!--         </node> -->
 
- <node pkg="nodelet" type="nodelet" name="vision_nodelet_left" args="manager" output="screen"/>
-        <node pkg="nodelet" type="nodelet" name="hk_camera_left" args="load hk_camera/HKCameraNodelet vision_nodelet_left" output="screen">
-        <param name="camera_name" value="hk_left"/>
-        <param name="image_width" value="1440"/>
-        <param name="image_height" value="1080"/>
-        <param name="pixel_format" value="bgr8"/>
-        <param name="camera_info_url" value="file://$(find hk_camera)/config/hk_left.yaml"/>
-        <param name="camera_frame_id" value="camera_left_optical_frame"/>
-        <param name="camera_sn" value="00K01829453"/>
-        <param name="frame_rate" value="160"/>
-        </node>
+<!--  <node pkg="nodelet" type="nodelet" name="vision_nodelet_left" args="manager" output="screen"/> -->
+<!--         <node pkg="nodelet" type="nodelet" name="hk_camera_left" args="load hk_camera/HKCameraNodelet vision_nodelet_left" output="screen"> -->
+<!--         <param name="camera_name" value="hk_left"/> -->
+<!--         <param name="image_width" value="1440"/> -->
+<!--         <param name="image_height" value="1080"/> -->
+<!--         <param name="pixel_format" value="bgr8"/> -->
+<!--         <param name="camera_info_url" value="file://$(find hk_camera)/config/hk_left.yaml"/> -->
+<!--         <param name="camera_frame_id" value="camera_left_optical_frame"/> -->
+<!--         <param name="camera_sn" value="00K01829453"/> -->
+<!--         <param name="frame_rate" value="160"/> -->
+<!--         </node> -->
 
 </launch>

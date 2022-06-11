@@ -68,9 +68,9 @@ public:
 
   void nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold);
 
-  void drawObjects(const cv::Mat& bgr);
+  void drawObjects(const cv::Mat& bgr, bool flag);
 
-  void mainFuc(cv_bridge::CvImagePtr& image_ptr);
+  void mainFuc(cv_bridge::CvImagePtr& image_ptr, bool flag);
 
   void initalizeInferOfCar();
   void initalizeInferOfArmor();
@@ -80,8 +80,8 @@ public:
   void doInference(nvinfer1::IExecutionContext& context, float* input, float* output, const int output_size,
                    const cv::Size& input_shape);
 
-  void publishDataForRed(const Object& object);
-  void publishDataForBlue(const Object& object);
+  void publishDataForRed(const Object& object, bool flag);
+  void publishDataForBlue(const Object& object, bool flag);
   //  void publishUndetectableNum(std::vector<int> detectable_vec, std::vector<int> color_num_vec,
   //                              std::vector<Object> objects, int img_w, int img_h);
   void getRoiImg(const std::vector<Object>& object, std::vector<cv::Mat>& roi_vec);
@@ -122,6 +122,11 @@ public:
   std::string roi_data3_name_;
   std::string roi_data4_name_;
   std::string roi_data5_name_;
+  std::string roi_data6_name_;
+  std::string roi_data7_name_;
+  std::string roi_data8_name_;
+  std::string roi_data9_name_;
+  std::string roi_data10_name_;
   bool left_camera_;
   bool target_is_red_;
   bool target_is_blue_;
@@ -147,11 +152,17 @@ private:
   ros::Publisher camera_pub_;
   ros::Publisher camera_pub2_;
   ros::Subscriber camera_sub_;
-  std::vector<ros::Publisher> roi_data_pub_vec;
+  std::vector<ros::Publisher> roi_data_pub_vec_l;
+  std::vector<ros::Publisher> roi_data_pub_vec_r;
   ros::Publisher roi_data_pub1_;
   ros::Publisher roi_data_pub2_;
   ros::Publisher roi_data_pub3_;
   ros::Publisher roi_data_pub4_;
   ros::Publisher roi_data_pub5_;
+  ros::Publisher roi_data_pub6_;
+  ros::Publisher roi_data_pub7_;
+  ros::Publisher roi_data_pub8_;
+  ros::Publisher roi_data_pub9_;
+  ros::Publisher roi_data_pub10_;
 };
 }  // namespace rm_detector
