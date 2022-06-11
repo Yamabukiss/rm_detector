@@ -78,12 +78,12 @@ public:
   void dynamicCallback(rm_detector::dynamicConfig& config);
 
   void doInference(nvinfer1::IExecutionContext& context, float* input, float* output, const int output_size,
-                   cv::Size input_shape);
+                   const cv::Size& input_shape);
 
   void publishDataForRed(const Object& object);
   void publishDataForBlue(const Object& object);
-  void publishUndetectableNum(std::vector<int> detectable_vec, std::vector<int> color_num_vec,
-                              std::vector<Object> objects, int img_w, int img_h);
+  //  void publishUndetectableNum(std::vector<int> detectable_vec, std::vector<int> color_num_vec,
+  //                              std::vector<Object> objects, int img_w, int img_h);
   void getRoiImg(const std::vector<Object>& object, std::vector<cv::Mat>& roi_vec);
   void detectArmor(std::vector<cv::Mat>& roi_vec);
 
@@ -113,7 +113,7 @@ public:
   float scale_;
   float scale2_;
   bool turn_on_image_;
-  dynamic_reconfigure::Server<rm_detector::dynamicConfig> server_;
+  dynamic_reconfigure::Server<rm_detector::dynamicConfig>* server_;
   dynamic_reconfigure::Server<rm_detector::dynamicConfig>::CallbackType callback_;
   std::string nodelet_name_;
   std::string camera_pub_name_;
@@ -122,6 +122,7 @@ public:
   std::string roi_data3_name_;
   std::string roi_data4_name_;
   std::string roi_data5_name_;
+  bool left_camera_;
   bool target_is_red_;
   bool target_is_blue_;
   cv::Mat roi_picture_;

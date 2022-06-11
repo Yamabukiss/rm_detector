@@ -1,6 +1,8 @@
 <launch>
      <group ns="armor_detect_nodelet">
-        <param name="g_model_path"  type="string" value="/home/dynamicx/catkin_ws/src/rm_detector/engine1.engine"/>
+     <param name="left_camera"  type="string" value="ture"/>
+     <param name="g_car_model_path"  type="string" value="$(find rm_detector)/285epoch_official_car.engine"/>
+     <param name="g_armor_model_path"  type="string" value="$(find rm_detector)/40epoch_crop_bar.engine"/>
         <param name="nodelet_name"  type="string" value="detector_nodelet"/>
         <param name="camera_pub_name"  type="string" value="armor_detector_image_publisher"/>
         <param name="roi_data1_name"  type="string" value="roi_data1"/>
