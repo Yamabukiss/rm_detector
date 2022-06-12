@@ -32,7 +32,7 @@ Detector::Detector()
 
 void Detector::onInit()
 {
-  //  nh_ = getMTPrivateNodeHandle();
+  nh_ = getMTPrivateNodeHandle();
   nh_.getParam("g_car_model_path_left_", car_model_path_left_);
   nh_.getParam("g_armor_model_path_left_", armor_model_path_left_);
   nh_.getParam("g_car_model_path_right_", car_model_path_right_);
@@ -129,8 +129,8 @@ void Detector::receiveFromLeftCam(const sensor_msgs::ImageConstPtr& image)
   //  bool flag_
   cv::Mat test_image = cv::imread("/home/dynamicx/catkin_ws/src/rm_detector/0.jpg");
   cv::Mat l_img = test_image(cv::Rect(0, 0, test_image.cols / 2, test_image.rows));
-  cv::Mat r_img = test_image(cv::Rect(test_image.cols / 2, 0, test_image.cols / 2, test_image.rows));
-  cv_bridge::CvImage(std_msgs::Header(), "bgr8", test_image).toImageMsg();
+  //    cv::Mat r_img = test_image(cv::Rect(test_image.cols / 2, 0, test_image.cols / 2, test_image.rows));
+  //  cv_bridge::CvImage(std_msgs::Header(), "bgr8", test_image).toImageMsg();
 
   cv_image_left_ = boost::make_shared<cv_bridge::CvImage>(cv_bridge::CvImage(std_msgs::Header(), "bgr8", l_img));
   mainFucLeft(cv_image_left_);
@@ -144,9 +144,9 @@ void Detector::receiveFromRightCam(const sensor_msgs::ImageConstPtr& image)
 
   //  bool flag_
   cv::Mat test_image = cv::imread("/home/dynamicx/catkin_ws/src/rm_detector/0.jpg");
-  cv::Mat l_img = test_image(cv::Rect(0, 0, test_image.cols / 2, test_image.rows));
+  //    cv::Mat l_img = test_image(cv::Rect(0, 0, test_image.cols / 2, test_image.rows));
   cv::Mat r_img = test_image(cv::Rect(test_image.cols / 2, 0, test_image.cols / 2, test_image.rows));
-  cv_bridge::CvImage(std_msgs::Header(), "bgr8", test_image).toImageMsg();
+  //  cv_bridge::CvImage(std_msgs::Header(), "bgr8", test_image).toImageMsg();
 
   cv_image_right_ = boost::make_shared<cv_bridge::CvImage>(cv_bridge::CvImage(std_msgs::Header(), "bgr8", r_img));
   mainFucRight(cv_image_right_);
@@ -812,9 +812,9 @@ void Detector::initalizeInferOfArmorLeft()
   {
     output_size *= out_dims.d[j];
   }
-  output_size2_right_ = output_size;
+  output_size2_left_ = output_size;
 
-  static float* prob = new float[output_size2_right_];
+  static float* prob = new float[output_size2_left_];
   prob2_left_ = prob;
 }
 
@@ -1053,11 +1053,11 @@ void Detector::mainFucRight(cv_bridge::CvImagePtr& image_ptr)
 
     if (target_is_red_right_)
     {
-      publishDataForRedLeft(armor_object_vec_Right_[i]);
+      publishDataForRedRight(armor_object_vec_Right_[i]);
     }
     else if (target_is_blue_right_)
     {
-      publishDataForBlueLeft(armor_object_vec_Right_[i]);
+      publishDataForBlueRight(armor_object_vec_Right_[i]);
     }
     //    detectable_num_vec.push_back(armor_object_vec_[i].label);
   }
