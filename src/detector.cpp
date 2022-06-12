@@ -293,68 +293,16 @@ void Detector::nmsSortedBboxes(const std::vector<Object>& faceobjects, std::vect
 
 void Detector::publishDataForRed(const Object& object)
 {
+  if (object.label > 4)
+    return;
   roi_data_pub_vec[object.label].publish(roi_data_);
 }
 void Detector::publishDataForBlue(const Object& object)
 {
+  if (object.label < 5)
+    return;
   roi_data_pub_vec[object.label - 5].publish(roi_data_);
 }
-
-// void Detector::publishUndetectableNum(std::vector<int> detectable_vec, std::vector<int> color_num_vec,
-//                                       std::vector<Object> objects, int img_w, int img_h)
-//{
-//   std::vector<int> undetectable_num_vec;
-//   undetectable_num_vec.resize(10);
-//   std::sort(detectable_vec.begin(), detectable_vec.end());
-//   std::sort(color_num_vec.begin(), color_num_vec.end());
-//   std::set_difference(color_num_vec.begin(), color_num_vec.end(), detectable_vec.begin(), detectable_vec.end(),
-//                       undetectable_num_vec.begin());
-//   for (int i = 0; i < objects.size(); i++)
-//   {
-//     auto signal = std::find(std::begin(undetectable_num_vec), std::end(undetectable_num_vec), objects[i].label);
-//     if (signal != undetectable_num_vec.end())
-//     {
-//       if (target_is_red_)
-//       {
-//         std::vector<cv::Point_<float>> roi_point_vec;
-//         std_msgs::Float32MultiArray roi_data;
-//         roi_data_point_l_.x = (car_objects_[i].rect.tl().x) / scale_;
-//         roi_data_point_l_.y = ((car_objects_[i].rect.tl().y) / scale_) - (abs(img_w - img_h) / 2);
-//         roi_data_point_r_.x = (car_objects_[i].rect.br().x) / scale_;
-//         roi_data_point_r_.y = ((car_objects_[i].rect.br().y) / scale_) - (abs(img_w - img_h) / 2);
-//
-//         roi_point_vec.push_back(roi_data_point_l_);
-//         roi_point_vec.push_back(roi_data_point_r_);
-//
-//         roi_data.data.push_back(roi_point_vec[0].x);
-//         roi_data.data.push_back(roi_point_vec[0].y);
-//         roi_data.data.push_back(roi_point_vec[1].x);
-//         roi_data.data.push_back(roi_point_vec[1].y);
-//
-//         roi_data_pub_vec[objects[i].label].publish(roi_data);
-//       }
-//       else if (target_is_blue_)
-//       {
-//         std::vector<cv::Point_<float>> roi_point_vec;
-//         std_msgs::Float32MultiArray roi_data;
-//         roi_data_point_l_.x = (car_objects_[i].rect.tl().x) / scale2_;
-//         roi_data_point_l_.y = ((car_objects_[i].rect.tl().y) / scale2_) - (abs(img_w - img_h) / 2);
-//         roi_data_point_r_.x = (car_objects_[i].rect.br().x) / scale2_;
-//         roi_data_point_r_.y = ((car_objects_[i].rect.br().y) / scale2_) - (abs(img_w - img_h) / 2);
-//
-//         roi_point_vec.push_back(roi_data_point_l_);
-//         roi_point_vec.push_back(roi_data_point_r_);
-//
-//         roi_data.data.push_back(roi_point_vec[0].x);
-//         roi_data.data.push_back(roi_point_vec[0].y);
-//         roi_data.data.push_back(roi_point_vec[1].x);
-//         roi_data.data.push_back(roi_point_vec[1].y);
-//
-//         roi_data_pub_vec[objects[i].label - 5].publish(roi_data);
-//       }
-//     }
-//   }
-// }
 
 void Detector::getRoiImg(const std::vector<Object>& object, std::vector<cv::Mat>& roi_vec)
 {
@@ -419,7 +367,9 @@ void Detector::detectArmor(std::vector<cv::Mat>& roi_vec)  // armor_point<-->roi
 
     if (proposals.empty())
     {
-      return;
+      cv::putText(cv_image_->image, "0", cv::Point(car_objects_[i].rect.tl().x, car_objects_[i].rect.tl().y), 1, 2,
+                  cv::Scalar(255, 255, 255), 2, 2, false);
+      continue;
     }
     select_car_objects.push_back(car_objects_[i]);
     qsortDescentInplace(proposals);
@@ -436,10 +386,21 @@ void Detector::detectArmor(std::vector<cv::Mat>& roi_vec)  // armor_point<-->roi
 
 void Detector::drawObjects(const cv::Mat& bgr)
 {
-  for (size_t i = 0; i < car_objects_.size(); i++)
-  {
-    cv::rectangle(bgr, car_objects_[i].rect, cv::Scalar(255, 0, 0), 2);
-  }
+  if (target_is_red_)
+    for (size_t i = 0; i < car_objects_.size(); i++)
+    {
+      cv::putText(cv_image_->image, std::to_string(armor_object_vec_[i].label + 1),
+                  cv::Point(car_objects_[i].rect.x, car_objects_[i].rect.y), 1, 2, cv::Scalar(0, 0, 255), 2, 2, false);
+      cv::rectangle(bgr, car_objects_[i].rect, cv::Scalar(0, 255, 0), 2);
+    }
+  if (target_is_blue_)
+    for (size_t i = 0; i < car_objects_.size(); i++)
+    {
+      cv::putText(cv_image_->image, std::to_string(armor_object_vec_[i].label - 4),
+                  cv::Point(car_objects_[i].rect.x, car_objects_[i].rect.y), 1, 2, cv::Scalar(255, 0, 0), 2, 2, false);
+      cv::rectangle(bgr, car_objects_[i].rect, cv::Scalar(0, 255, 0), 2);
+    }
+
   camera_pub_.publish(cv_bridge::CvImage(std_msgs::Header(), "bgr8", bgr).toImageMsg());
 }
 
