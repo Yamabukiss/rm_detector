@@ -66,4 +66,3 @@ target_link_libraries(
         ${NGRAPH_LIBRARIES}
         ${OpenCV_LIBS}
 )
-
