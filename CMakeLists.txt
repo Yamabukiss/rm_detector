@@ -46,7 +46,8 @@ include_directories(
         ${catkin_INCLUDE_DIRS}
 )
 ## Declare a C++ library
-add_library(${PROJECT_NAME} src/detector.cpp)
+#add_library(${PROJECT_NAME} src/detector.cpp)
+add_executable(${PROJECT_NAME} src/detector.cpp)
 
 target_link_libraries(${PROJECT_NAME}
         ${catkin_LIBRARIES}
