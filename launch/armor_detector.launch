@@ -4,13 +4,13 @@
 <!--     <remap from="trigger_time" to="controllers/imu_filter_controller/gimbal_imu/trigger_time"/> -->
 
     <arg name="enable_imu_trigger" default="false"/>
-    <arg name="camera_name" default="hk_camera"/>
+    <arg name="camera_name" default="galaxy_camera"/>
     <arg name="camera_frame" default="camera_optical_frame"/>
     
   <node pkg="nodelet" type="nodelet" name="nodelet_manager"  args="manager" output="screen"/>
   <!-- nodelet'tag should follow obey the following format -->
      <node pkg="nodelet" type="nodelet" name="armor_detect_nodelet" args="load rm_detector/armor_detector nodelet_manager" output="screen" >
-     <param name="g_model_path"  type="string" value="$(find rm_detector)//home/yamabuki/Downloads/micro.onnx"/>
+     <param name="g_model_path"  type="string" value="/home/yamabuki/Downloads/nano320.onnx"/>
      <param name="nodelet_name"  type="string" value="detector_nodelet"/>
      <param name="camera_pub_name"  type="string" value="armor_detector_image_publisher"/>
      <param name="roi_data1_name"  type="string" value="roi_data1"/>
@@ -21,18 +21,30 @@
 <!--      <rosparam command="load" file="$(find rm_detector)/config/camera.yaml" /> -->
      </node>
 
-<!--     <node pkg="nodelet" type="nodelet" name="hk_camera" -->
-<!--           args="load hk_camera/HKCameraNodelet nodelet_manager" -->
+<!--     <node pkg="nodelet" type="nodelet" name="galaxy_camera" -->
+<!--           args="load galaxy_camera/GalaxyCameraNodelet nodelet_manager" -->
 <!--           output="screen"> -->
-<!--         <param name="image_width" value="1440"/> -->
-<!--         <param name="image_height" value="1080"/> -->
+<!--         <param name="image_width" value="1280"/> -->
+<!--         <param name="image_height" value="1024"/> -->
 <!--         <param name="pixel_format" value="bgr8"/> -->
 <!--         <param name="camera_info_url" value=""/> -->
 <!--         <param name="camera_frame_id" value="$(arg camera_frame)"/> -->
-<!--         <param name="camera_sn" value="00J67375789"/> -->
+<!--         <param name="camera_sn" value="KE0200060392"/> -->
 <!--         <param name="enable_imu_trigger" value="$(arg enable_imu_trigger)"/> -->
 <!--         <param name="raising_filter_value" value="0"/> -->
 <!--     </node> -->
+    <node pkg="nodelet" type="nodelet" name="hk_camera"
+          args="load hk_camera/HKCameraNodelet nodelet_manager"
+          output="screen">
+        <param name="image_width" value="1440"/>
+        <param name="image_height" value="1080"/>
+        <param name="pixel_format" value="bgr8"/>
+        <param name="camera_info_url" value=""/>
+        <param name="camera_frame_id" value="$(arg camera_frame)"/>
+        <param name="camera_sn" value="00J67375789"/>
+        <param name="enable_imu_trigger" value="$(arg enable_imu_trigger)"/>
+        <param name="raising_filter_value" value="0"/>
+    </node>
 
 
 

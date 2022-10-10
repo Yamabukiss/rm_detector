@@ -19,6 +19,10 @@
 struct Object
 {
   cv::Rect_<float> rect;
+  cv::Point p1;
+  cv::Point p2;
+  cv::Point p3;
+  cv::Point p4;
   int label;
   float prob;
 };
@@ -39,7 +43,7 @@ public:
   virtual ~Detector();
   void onInit() override;
   void receiveFromCam(const sensor_msgs::ImageConstPtr& image);
-  void staticResize(cv::Mat& img);
+  void staticResize(cv::Mat &img);
   void blobFromImage(cv::Mat& img);
   void generateGridsAndStride(const int target_w, const int target_h);
   void generateYoloxProposals(std::vector<GridAndStride> grid_strides, const float* feat_ptr, float prob_threshold,
@@ -87,6 +91,7 @@ public:
   std::string roi_data5_name_;
   bool target_is_red_;
   bool target_is_blue_;
+  bool save_on_;
   cv::Mat roi_picture_;
   std::vector<cv::Mat> roi_picture_vec_;
   std::vector<cv::Mat> roi_picture_split_vec_;
@@ -96,6 +101,7 @@ public:
   std::vector<Object> filter_objects_;
   int binary_threshold_;
   float aspect_ratio_;
+  cv::Mat origin_img;
 
 private:
   ros::NodeHandle nh_;
