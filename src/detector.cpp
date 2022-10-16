@@ -7,6 +7,7 @@
 #define INPUT_W 320
 #define INPUT_H 320
 #define NUM_CLASSES 2
+int num=1;
 namespace rm_detector
 {
 Detector::Detector()
@@ -25,7 +26,7 @@ void Detector::onInit()
     server_.setCallback(callback_);
 
     nh_ = ros::NodeHandle(nh, nodelet_name_);
-  camera_sub_ = nh_.subscribe("/hk_camera/image_raw", 1, &Detector::receiveFromCam, this);
+  camera_sub_ = nh_.subscribe("/galaxy_camera/image_raw", 1, &Detector::receiveFromCam, this);
   camera_pub_ = nh_.advertise<sensor_msgs::Image>(camera_pub_name_, 1);
   camera_pub2_ = nh_.advertise<sensor_msgs::Image>("sub_publisher", 1);
 
@@ -35,8 +36,17 @@ void Detector::onInit()
 void Detector::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
 {
   cv_image_ = boost::make_shared<cv_bridge::CvImage>(*cv_bridge::toCvShare(image, image->encoding));
-  mainFuc(cv_image_);
-  objects_.clear();
+  std::string path="/home/yamabuki/mineral/mineral3_"+std::to_string(num) + ".jpg";
+  if (save_on_)
+    {
+        cv::imwrite(path,cv_image_->image);
+        std::cout<<path<<std::endl;
+        num++;
+    }
+    cv::waitKey(100);
+//  cv::imwrite()
+//  mainFuc(cv_image_);
+//  objects_.clear();
 //  roi_picture_vec_.clear();
 }
 
